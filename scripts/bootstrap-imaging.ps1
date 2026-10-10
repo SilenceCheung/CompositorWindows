@@ -49,14 +49,34 @@ Configure-Build 'libde265' @('-DENABLE_DECODER=OFF','-DENABLE_ENCODER=OFF','-DEN
 Configure-Build 'libheif' @('-DENABLE_PLUGIN_LOADING=OFF','-DWITH_LIBDE265=ON','-DWITH_LIBDE265_PLUGIN=OFF','-DWITH_X265=OFF','-DWITH_X264=OFF','-DWITH_OpenH264_DECODER=OFF','-DWITH_AOM_DECODER=OFF','-DWITH_AOM_ENCODER=OFF','-DWITH_LIBSHARPYUV=OFF','-DWITH_GDK_PIXBUF=OFF','-DWITH_EXAMPLES=OFF','-DBUILD_TESTING=OFF','-DBUILD_DOCUMENTATION=OFF')
 if(-not $SkipModel){
     Expand-Archive (Join-Path $dependency 'onnxruntime-win-x64-1.30.0.zip') -DestinationPath $dependency -Force
-    $venv=Join-Path $dependency 'model-venv'
-    if(-not (Test-Path (Join-Path $venv 'Scripts/python.exe'))){& $Python -m venv $venv;if($LASTEXITCODE){throw 'Python 3.12 environment creation failed'}}
-    $pythonExe=Join-Path $venv 'Scripts/python.exe'
-    & $pythonExe -m pip install --extra-index-url https://download.pytorch.org/whl/cpu --require-hashes -r (Join-Path $dependency 'model-requirements.hashes.txt')
-    if($LASTEXITCODE){throw 'Pinned conversion dependency installation failed'}
-    & $pythonExe (Join-Path $root 'tests/imaging/make_fixtures.py');if($LASTEXITCODE){throw 'Fixture creation failed'}
     $model=Join-Path $dependency 'model/birefnet-lite.onnx'
-    if(-not (Test-Path $model)){& $pythonExe (Join-Path $root 'tests/imaging/convert_birefnet.py');if($LASTEXITCODE){throw 'Model conversion/verification failed'}}
+    if(-not (Test-Path $model)){
+        $portableZip = Join-Path $dependency 'temp-portable.zip'
+        try {
+            Write-Host 'Fetching pinned model from upstream release...'
+            Invoke-WebRequest -Uri 'https://github.com/Cengokill/CompositorWindows/releases/download/v0.1.5/CompositorWindows-0.1.5-portable.zip' -OutFile $portableZip
+            Add-Type -AssemblyName System.IO.Compression.FileSystem
+            $archive = [System.IO.Compression.ZipFile]::OpenRead($portableZip)
+            $entry = $archive.Entries | Where-Object { $_.FullName -like '*birefnet-lite.onnx' } | Select-Object -First 1
+            if ($entry) {
+                New-Item -ItemType Directory -Force (Split-Path $model) | Out-Null
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $model, $true)
+            }
+            $archive.Dispose()
+            Remove-Item -Force $portableZip -ErrorAction SilentlyContinue
+        } catch {
+            Write-Warning "Could not fetch model from release: $_"
+        }
+    }
+    if(-not (Test-Path $model)){
+        $venv=Join-Path $dependency 'model-venv'
+        if(-not (Test-Path (Join-Path $venv 'Scripts/python.exe'))){& $Python -m venv $venv;if($LASTEXITCODE){throw 'Python 3.12 environment creation failed'}}
+        $pythonExe=Join-Path $venv 'Scripts/python.exe'
+        & $pythonExe -m pip install --extra-index-url https://download.pytorch.org/whl/cpu --require-hashes -r (Join-Path $dependency 'model-requirements.hashes.txt')
+        if($LASTEXITCODE){throw 'Pinned conversion dependency installation failed'}
+        & $pythonExe (Join-Path $root 'tests/imaging/make_fixtures.py');if($LASTEXITCODE){throw 'Fixture creation failed'}
+        & $pythonExe (Join-Path $root 'tests/imaging/convert_birefnet.py');if($LASTEXITCODE){throw 'Model conversion/verification failed'}
+    }
     Assert-Hash $model $lock.model.onnx_sha256
 }
 Write-Output 'Pinned imaging dependencies are available locally.'
