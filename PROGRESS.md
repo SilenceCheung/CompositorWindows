@@ -1,6 +1,8 @@
 # Current checkpoint
 
-Windows preview **0.1.4** is based on Mac Compositor 1.0.4 at `a19db9011282399785dc18efcfded904627bdcc2`. The public repository is https://github.com/IAmTheBlurr/CompositorWindows. The complete existing Windows commit history is retained.
+Windows preview **0.1.6** introduces bilingual runtime support (Simplified Chinese 简体中文 and English) with zero-restart dynamic switching, upstream synchronization tracking with Robbie Tilton's official Compositor repository, and automated GitHub Actions CI/CD workflows for Windows x64 Release MSI/ZIP packaging.
+
+Windows preview **0.1.5** retained Camera Raw Filter restyling. Windows preview **0.1.4** was based on Mac Compositor 1.0.4 at `a19db9011282399785dc18efcfded904627bdcc2`. The public repository is https://github.com/SilenceCheung/CompositorWindows. The complete existing Windows commit history is retained.
 
 The current interface has a vector tool rail, custom dark controls, Inter typography, compact adjustment panels, a themed project picker, and Mac-informed layer rows. Native Windows title bars are the default; View → Appearance → Mac-style title bar enables the saved optional appearance. This preference only changes window chrome.
 

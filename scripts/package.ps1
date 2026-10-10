@@ -1,4 +1,4 @@
-param([switch]$SkipBuild,[switch]$PortableOnly,[string]$Version='0.1.4')
+param([switch]$SkipBuild,[switch]$PortableOnly,[string]$Version='0.1.6')
 $ErrorActionPreference='Stop'
 $packageRoot=Split-Path $PSScriptRoot -Parent
 if($Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'){throw 'Version must be a numeric semantic version'}
@@ -34,7 +34,9 @@ try {
   if((Get-FileHash -LiteralPath $binarySource -Algorithm SHA256).Hash -ine $binary.sha256){throw "Imaging dependency checksum mismatch: $($binary.path)"}
   Copy-Item -LiteralPath $binarySource -Destination $payload
  }
- New-Item -ItemType Directory -Path (Join-Path $payload 'models'),(Join-Path $payload 'shaders'),(Join-Path $payload 'licenses'),(Join-Path $payload 'sources') | Out-Null
+ New-Item -ItemType Directory -Path (Join-Path $payload 'models'),(Join-Path $payload 'shaders'),(Join-Path $payload 'licenses'),(Join-Path $payload 'sources'),(Join-Path $payload 'translations') | Out-Null
+ $translationsSource=Join-Path $packageRoot 'translations'
+ if(Test-Path -LiteralPath $translationsSource){Copy-Item -Path (Join-Path $translationsSource '*') -Destination (Join-Path $payload 'translations') -Recurse}
  $modelSource=Join-Path $imaging 'model\birefnet-lite.onnx'
  if((Get-FileHash -LiteralPath $modelSource -Algorithm SHA256).Hash -ine $lock.model.onnx_sha256){throw 'Foreground model checksum mismatch'}
  Copy-Item -LiteralPath $modelSource -Destination (Join-Path $payload 'models')
@@ -69,7 +71,7 @@ try {
    }
   }
  }
- foreach($dir in @('src','shaders')){Copy-ApplicationSource (Join-Path $packageRoot $dir) (Join-Path $source $dir) @('.cpp','.c','.h','.hpp','.hlsl','.rc','.manifest','.in')}
+ foreach($dir in @('src','shaders','translations')){Copy-ApplicationSource (Join-Path $packageRoot $dir) (Join-Path $source $dir) @('.cpp','.c','.h','.hpp','.hlsl','.rc','.manifest','.in','.ts','.qm')}
  Copy-ApplicationSource (Join-Path $packageRoot 'assets') (Join-Path $source 'assets') @('.ico','.svg','.png','.txt','.ttf')
  $testSources=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
  $includeDirectories=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)

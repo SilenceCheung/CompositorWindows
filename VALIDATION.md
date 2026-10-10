@@ -4,6 +4,7 @@ Results below describe actual local checkpoints, not Mac equivalence or broad ha
 
 | Checkpoint | Result |
 | --- | --- |
+| Preview 0.1.6 bilingual & CI/CD | Validated Python localization integrity test (100% string coverage, zero encoding flaws), Qt resource integration, and GitHub Actions CI/CD matrix. |
 | Publication preview 0.1.4 | Release application builds from the staged source export using the prepared dependency cache. 24 selected CTest checks, the manual-update policy check, native window-control probe, and 18-step editing workflow pass. |
 | Preview 0.1.4 downloads | Six portable deployment checks pass, including hashes, matching source, manual-update distribution, cleaned-PATH health, native editing, and Unicode project reopen/export. Local MSI upgrade and installed cleaned-PATH health exit 0; the installed executable matches the package. |
 | Preview 0.1.3 window appearance | Release build; 43 affected UI checks pass. Native title bar switching, persistence, dialogs, and canvas probes pass at 100% and 150%. |
