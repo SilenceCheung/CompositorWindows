@@ -5,10 +5,12 @@
 #include "imaging/raw_develop.h"
 #include <QFile>
 #include <QFileInfo>
+#include <QImage>
 #include <QFutureWatcher>
 #include <QTimer>
 #include <QtConcurrent/QtConcurrentRun>
 #include <cmath>
+#include <cstring>
 #include <deque>
 #include <limits>
 
@@ -17,6 +19,23 @@ imaging::DecodedImage decodeImportImage(const std::filesystem::path& path,const 
     auto extension=QString::fromStdWString(path.extension().wstring()).toLower();
     if(extension==".svg")return imaging::rasterizeSvg(path,options);
     if(extension==".cr2"||extension==".nef"||extension==".arw"||extension==".dng"||extension==".raw"||extension==".rw2")return imaging::decodeRaw(path,{},options);
+    if(extension==".webp"){
+        QImage img(QString::fromStdWString(path.wstring()));
+        if(!img.isNull()){
+            img=img.convertToFormat(QImage::Format_RGBA8888_Premultiplied);
+            imaging::DecodedImage out;
+            out.image.width=img.width();
+            out.image.height=img.height();
+            out.image.stride=img.bytesPerLine();
+            out.image.pixels.resize(img.sizeInBytes());
+            std::memcpy(out.image.pixels.data(),img.constBits(),img.sizeInBytes());
+            out.metadata.originalOrientation=1;
+            out.metadata.dpiX=img.dotsPerMeterX()>0?img.dotsPerMeterX()*0.0254:72;
+            out.metadata.dpiY=img.dotsPerMeterY()>0?img.dotsPerMeterY()*0.0254:72;
+            out.metadata.decoder="WebP";
+            return out;
+        }
+    }
     QFile file(QString::fromStdWString(path.wstring()));
     if(!file.open(QIODevice::ReadOnly))throw std::runtime_error("Cannot open image");
     const auto signature=file.read(16);file.close();

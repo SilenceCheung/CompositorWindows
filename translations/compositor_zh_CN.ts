@@ -379,5 +379,9 @@
         <source>Remove Background…</source>
         <translation>移除背景…</translation>
     </message>
+    <message>
+        <source>WebP (*.webp)</source>
+        <translation>WebP 图像 (*.webp)</translation>
+    </message>
 </context>
 </TS>

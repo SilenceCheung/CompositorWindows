@@ -67,5 +67,9 @@
         <source>Exit</source>
         <translation>Exit</translation>
     </message>
+    <message>
+        <source>WebP (*.webp)</source>
+        <translation>WebP (*.webp)</translation>
+    </message>
 </context>
 </TS>

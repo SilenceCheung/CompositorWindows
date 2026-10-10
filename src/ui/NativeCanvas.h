@@ -83,6 +83,9 @@ private:
     uint64_t presentationBytes_{},profileDiscoveryCount_{};
     uint64_t presentationByteBudget_{128ULL*1024*1024};
     bool warp_,dragging_{},rightDragging_{},panning_{},tabletActive_{};
+    bool middleZooming_{};
+    QPointF middleZoomStart_;
+    double middleZoomStartValue_{1};
     double backingScale_{1};
     bool followsFit_{true};
     QPointF last_;

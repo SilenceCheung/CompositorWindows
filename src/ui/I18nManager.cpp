@@ -120,6 +120,7 @@ void I18nManager::initDictionary() {
     add("Open Project…", "打开项目…");
     add("&Import Image…", "导入图像(&I)…");
     add("Import Image…", "导入图像…");
+    add("WebP (*.webp)", "WebP 图像 (*.webp)");
     add("&Export Image…", "导出图像(&E)…");
     add("Export Image…", "导出图像…");
     add("Export As…", "导出为…");

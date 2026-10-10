@@ -248,8 +248,17 @@ void NativeCanvas::mousePressEvent(QMouseEvent*e){
     if(tabletActive_){e->accept();return;}
     setFocus();last_=e->position();if(pointerHover)pointerHover(e->position(),e->modifiers());
     if(e->button()==Qt::RightButton&&rightPointerDown&&rightPointerDown(e->position(),e->modifiers())){rightDragging_=true;grabMouse();e->accept();return;}
-    if(e->button()==Qt::MiddleButton){panning_=true;grabMouse();e->accept();return;}
-    if(e->button()==Qt::LeftButton&&!rightDragging_&&!panning_){dragging_=true;grabMouse();if(pointerDown)pointerDown(documentPoint(e->position()),e->modifiers());}
+    if(e->button()==Qt::MiddleButton){
+        if(e->modifiers()&(Qt::ControlModifier|Qt::MetaModifier)){
+            middleZooming_=true;
+            middleZoomStart_=e->position();
+            middleZoomStartValue_=zoom;
+        }else{
+            panning_=true;
+        }
+        grabMouse();e->accept();return;
+    }
+    if(e->button()==Qt::LeftButton&&!rightDragging_&&!panning_&&!middleZooming_){dragging_=true;grabMouse();if(pointerDown)pointerDown(documentPoint(e->position()),e->modifiers());}
 }
 void NativeCanvas::mouseMoveEvent(QMouseEvent*e){
     if(tabletActive_){e->accept();return;}
@@ -261,6 +270,14 @@ void NativeCanvas::mouseMoveEvent(QMouseEvent*e){
         else unsetCursor();
     }
     if(!dragging_&&(transformOverlay_||distortionOverlay_)){auto geometry=distortionOverlay_?editing_transform::OverlayGeometry::fromCorners(*distortionOverlay_,viewMapping()):editing_transform::OverlayGeometry::fromTransform(*transformOverlay_,viewMapping());auto mode=geometry.hit({e->position().x(),e->position().y()});auto cursor=mode?geometry.cursor(*mode,{e->modifiers().testFlag(Qt::ShiftModifier),e->modifiers().testFlag(Qt::AltModifier),e->modifiers().testFlag(Qt::ControlModifier),false},distortionOverlay_.has_value()):editing_transform::Cursor::Move;Qt::CursorShape shape=Qt::SizeAllCursor;switch(cursor){case editing_transform::Cursor::Horizontal:shape=Qt::SizeHorCursor;break;case editing_transform::Cursor::Vertical:shape=Qt::SizeVerCursor;break;case editing_transform::Cursor::DiagonalDown:shape=Qt::SizeFDiagCursor;break;case editing_transform::Cursor::DiagonalUp:shape=Qt::SizeBDiagCursor;break;case editing_transform::Cursor::Rotate:case editing_transform::Cursor::Distort:shape=Qt::CrossCursor;break;default:break;}setCursor(shape);}
+    if(middleZooming_){
+        if(!navigationAllowed||navigationAllowed()){
+            const double factor=std::pow(2.0,(middleZoomStart_.y()-e->position().y())/100.0);
+            zoomAt(middleZoomStartValue_*factor,middleZoomStart_);
+        }
+        last_=e->position();
+        return;
+    }
     if(panning_&&(!navigationAllowed||navigationAllowed()))panBy(e->position()-last_);else if(dragging_&&pointerMove)pointerMove(documentPoint(e->position()),e->modifiers());last_=e->position();
 }
 void NativeCanvas::mouseDoubleClickEvent(QMouseEvent* e){
@@ -270,6 +287,7 @@ void NativeCanvas::mouseDoubleClickEvent(QMouseEvent* e){
 }
 void NativeCanvas::mouseReleaseEvent(QMouseEvent*e){
     if(tabletActive_){e->accept();return;}
+    if(middleZooming_&&e->button()==Qt::MiddleButton){middleZooming_=false;releaseMouse();return;}
     if(panning_&&e->button()==Qt::MiddleButton){panning_=false;releaseMouse();return;}
     if(rightDragging_&&e->button()==Qt::RightButton){rightDragging_=false;releaseMouse();if(rightPointerMove)rightPointerMove(e->position(),e->modifiers(),true);return;}
     if(dragging_&&e->button()==Qt::LeftButton){dragging_=false;releaseMouse();if(pointerUp)pointerUp(documentPoint(e->position()),e->modifiers());}
@@ -311,7 +329,7 @@ void NativeCanvas::drawTextOverlay(){
     if(overlay.caret>=0&&overlay.caret<int(overlay.carets.size())){const auto& line=overlay.carets[size_t(overlay.caret)];context_->DrawLine(viewOf(line.x0,line.y0),viewOf(line.x1,line.y1),caret.Get(),std::max(1.f,float(pointsPerPixel())));}
     context_->SetAntialiasMode(D2D1_ANTIALIAS_MODE_ALIASED);
 }
-void NativeCanvas::keyPressEvent(QKeyEvent*e){if(textKey&&textKey(e)){e->accept();return;}if(e->key()==Qt::Key_Escape&&(dragging_||rightDragging_)){dragging_=rightDragging_=tabletActive_=false;releaseMouse();if(pointerCancel)pointerCancel();e->accept();}else QWidget::keyPressEvent(e);}
+void NativeCanvas::keyPressEvent(QKeyEvent*e){if(textKey&&textKey(e)){e->accept();return;}if(e->key()==Qt::Key_Escape&&(dragging_||rightDragging_||panning_||middleZooming_)){middleZooming_=panning_=dragging_=rightDragging_=tabletActive_=false;releaseMouse();if(pointerCancel)pointerCancel();e->accept();}else QWidget::keyPressEvent(e);}
 void NativeCanvas::inputMethodEvent(QInputMethodEvent*e){if(textInput){textInput(e);e->accept();return;}QWidget::inputMethodEvent(e);}
 QVariant NativeCanvas::inputMethodQuery(Qt::InputMethodQuery query) const{
     if(query==Qt::ImEnabled)return textOverlay_.has_value();
@@ -333,7 +351,7 @@ void NativeCanvas::leaveEvent(QEvent*e){if(pointerLeave)pointerLeave();if(!dragg
 bool NativeCanvas::event(QEvent*e){if(e->type()==QEvent::Show){watchPresentationWindow();refreshDisplayProfile();updateSelectionAnimation();}
     if(e->type()==QEvent::Hide&&selectionTimer_)selectionTimer_->stop();
     const bool focusLost=e->type()==QEvent::WindowDeactivate||e->type()==QEvent::FocusOut;
-    if(focusLost||(e->type()==QEvent::UngrabMouse&&(dragging_||rightDragging_))){setSnapGuides();dragging_=rightDragging_=tabletActive_=false;if(QWidget::mouseGrabber()==this)releaseMouse();if(pointerInterrupted)pointerInterrupted();else if(pointerCancel)pointerCancel();}
+    if(focusLost||(e->type()==QEvent::UngrabMouse&&(dragging_||rightDragging_||panning_||middleZooming_))){setSnapGuides();middleZooming_=panning_=dragging_=rightDragging_=tabletActive_=false;if(QWidget::mouseGrabber()==this)releaseMouse();if(pointerInterrupted)pointerInterrupted();else if(pointerCancel)pointerCancel();}
     if(e->type()==QEvent::DevicePixelRatioChange){releaseDevice();synchronizeViewport();}
     if(e->type()==QEvent::NativeGesture){auto*gesture=static_cast<QNativeGestureEvent*>(e);if(gesture->gestureType()==Qt::ZoomNativeGesture){if(documentWidth_>0&&(!navigationAllowed||navigationAllowed()))zoomAt(zoom*(1+gesture->value()),gesture->position());gesture->accept();return true;}}
     return QWidget::event(e);

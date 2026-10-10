@@ -1,5 +1,7 @@
 # Current checkpoint
 
+Windows preview **0.1.7** is aligned with upstream Mac release **v1.4.9** (`0ab3ff58`), incorporating WebP image import decoding and dialog filters, Command/Control middle-button drag zoom matching upstream Blender-like gesture, upstream dependency lock pin updated to official release commit `0ab3ff58a3dcf3d52a455fe3ab0336ac95923edd`, and bilingual localization (Simplified Chinese & English) validation 100% passed.
+
 Windows preview **0.1.6** is aligned with upstream Mac release **v1.4.8** (`75147a2`), incorporating destructive Camera Raw Filter restyling, Scanlines filter, single-page lossless PDF export, Canvas 90° Clockwise and Counterclockwise rotation, bilingual runtime support (Simplified Chinese 简体中文 and English) with zero-restart dynamic switching, upstream synchronization tracking, and automated GitHub Actions CI/CD workflows for Windows x64 Release MSI/ZIP packaging.
 
 The 0.1.6 production release packages are built on `windows-2022` MSVC toolchain, verified, and placed in `./dist`:

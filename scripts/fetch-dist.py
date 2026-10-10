@@ -18,25 +18,33 @@ def run(cmd):
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
 def main():
+    tag = sys.argv[1] if len(sys.argv) > 1 else "v0.1.7"
     DIST.mkdir(parents=True, exist_ok=True)
-    print(f"Checking latest release and artifacts for {REPO}...")
+    print(f"Checking latest release and artifacts for {REPO} (tag: {tag})...")
 
     # Check if a release exists with assets
-    code, out, _ = run(f"gh release view v0.1.6 --repo {REPO} --json assets")
+    code, out, _ = run(f"gh release view {tag} --repo {REPO} --json assets")
     if code == 0 and out:
         try:
             data = json.loads(out)
             assets = data.get("assets", [])
             if assets:
-                print(f"Found {len(assets)} release assets in v0.1.6. Downloading to ./dist ...")
-                code, _, err = run(f"gh release download v0.1.6 --repo {REPO} --dir '{DIST}' --clobber")
-                if code == 0:
-                    print("Successfully downloaded release assets into ./dist:")
-                    for f in DIST.iterdir():
-                        print(f"  - {f.name} ({f.stat().st_size:,} bytes)")
-                    return 0
-                else:
-                    print(f"Warning: gh release download failed: {err}")
+                print(f"Found {len(assets)} release assets in {tag}. Downloading to ./dist ...")
+                has_aria2c = (subprocess.run("which aria2c", shell=True, capture_output=True).returncode == 0)
+                for a in assets:
+                    url = a.get("url")
+                    name = a.get("name")
+                    target = DIST / name
+                    if has_aria2c:
+                        print(f"Downloading {name} via aria2c...")
+                        run(f"aria2c -x 16 -s 16 -k 1M --dir='{DIST}' -o '{name}' '{url}'")
+                    else:
+                        print(f"Downloading {name} via gh...")
+                        run(f"gh release download {tag} --repo {REPO} -p '{name}' --dir '{DIST}' --clobber")
+                print("Successfully downloaded release assets into ./dist:")
+                for f in sorted(DIST.iterdir()):
+                    print(f"  - {f.name} ({f.stat().st_size:,} bytes)")
+                return 0
         except Exception as e:
             print(f"Error parsing release: {e}")
 
