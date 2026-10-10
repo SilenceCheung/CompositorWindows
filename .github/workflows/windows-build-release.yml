@@ -54,6 +54,7 @@ jobs:
             dependencies/imaging/install
             dependencies/imaging/model
             dependencies/imaging/onnxruntime-win-x64-1.30.0
+            dependencies/imaging/*.tar
             dependencies/packaging
           key: ${{ runner.os }}-compositor-deps-v3-${{ hashFiles('dependencies.lock.json', 'dependencies/imaging/lock.json', 'scripts/msi/toolchain.json') }}
           restore-keys: |

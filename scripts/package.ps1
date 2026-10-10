@@ -55,6 +55,13 @@ try {
  Copy-Item -LiteralPath $qtSource -Destination (Join-Path $payload 'sources')
  foreach($repo in $lock.repositories){
   $archive=Join-Path $imaging "$($repo.name)-$($repo.version)-source.tar"
+  if(-not (Test-Path -LiteralPath $archive)){
+   $repoPath=Join-Path $imaging $repo.name
+   if(-not (Test-Path -LiteralPath $repoPath)){
+    & git clone --depth 1 --branch $repo.tag $repo.url $repoPath
+   }
+   & git -c "safe.directory=$($repoPath.Replace('\','/'))" -C $repoPath archive --format=tar "-o$archive" HEAD
+  }
   if((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $repo.source_archive_sha256){throw "Corresponding source mismatch: $($repo.name)"}
   Copy-Item -LiteralPath $archive -Destination (Join-Path $payload 'sources')
  }
