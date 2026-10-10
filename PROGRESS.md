@@ -2,6 +2,13 @@
 
 Windows preview **0.1.6** is aligned with upstream Mac release **v1.4.8** (`75147a2`), incorporating destructive Camera Raw Filter restyling, Scanlines filter, single-page lossless PDF export, Canvas 90° Clockwise and Counterclockwise rotation, bilingual runtime support (Simplified Chinese 简体中文 and English) with zero-restart dynamic switching, upstream synchronization tracking, and automated GitHub Actions CI/CD workflows for Windows x64 Release MSI/ZIP packaging.
 
+The 0.1.6 production release packages are built on `windows-2022` MSVC toolchain, verified, and placed in `./dist`:
+- `CompositorWindows-0.1.6-x64.msi` (`24e0306ce2759083fe27b4c99f8024d3568cf3f032e588b1bc49f076be4424c0`)
+- `CompositorWindows-0.1.6-portable.zip` (`7aab9d2514b53777ea2962c12f2307e973fbe30d232922ff435b7fe0e71eb023`)
+- `CompositorWindows-0.1.6-demo.zip` (`b0cdf0df89e68fb6faaebc781de7dc17892889470b2e0b006abb60c49f4d6b19`)
+- `CompositorWindows-0.1.6-source.zip` (`77edee31cd4df07dd07ae68603b589b50ca8193e26976013cd14b3293bda64f5`)
+- Manifest and SHA256SUMS.txt integrity verified 100%. All runtime dependencies, neural models, and translations are self-contained with no target host requirements.
+
 Windows preview **0.1.5** retained Camera Raw Filter restyling. Windows preview **0.1.4** was based on Mac Compositor 1.0.4 at `a19db9011282399785dc18efcfded904627bdcc2`. The public repository is https://github.com/SilenceCheung/CompositorWindows. The complete existing Windows commit history is retained.
 
 The current interface has a vector tool rail, custom dark controls, Inter typography, compact adjustment panels, a themed project picker, and Mac-informed layer rows. Native Windows title bars are the default; View → Appearance → Mac-style title bar enables the saved optional appearance. This preference only changes window chrome.
