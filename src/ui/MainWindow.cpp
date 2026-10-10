@@ -1,4 +1,5 @@
 #include "MainWindow.h"
+#include "I18nManager.h"
 #include "LayerPanel.h"
 #include "PreviewComboBox.h"
 #include "PropertyControls.h"
@@ -42,18 +43,106 @@ Layer* MainWindow::active(){auto*p=current();if(!p||!p->document)return nullptr;
 bool MainWindow::canEditLayers(){const auto state=commandState();return !state.modalDialog&&ui::canEditLayers(state)&&shapeDraftId_.empty();}
 bool MainWindow::canEditAppearance(){return canEditLayers()&&active()&&!active()->group&&current()->selected.size()==1;}
 QAction* MainWindow::action(QMenu* menu,const QString& name,const QKeySequence& key,std::function<void()> invoke){
-    auto* item=menu->addAction(name);if(!key.isEmpty())item->setShortcut(key);
+    auto* item=menu->addAction(ui::tr(name));
+    item->setProperty("rawText", name);
+    if(!key.isEmpty())item->setShortcut(key);
     bindCommand(item,menu->title(),name,std::move(invoke));return item;
 }
-MainWindow::MainWindow(bool warp):warp_(warp){ui::installVisualStyle();setWindowTitle("Compositor");resize(1280,820);setAcceptDrops(true);tabs_=new QTabWidget;tabs_->setTabsClosable(true);tabs_->setDocumentMode(true);setCentralWidget(tabs_);tabs_->setMovable(true);connect(tabs_,&QTabWidget::currentChanged,this,[this]{switchProject();});connect(tabs_,&QTabWidget::tabCloseRequested,this,[this](int i){closeProject(i);});
-initializeCommands();
-auto*file=menuBar()->addMenu("&File");action(file,"&New Canvas…",QKeySequence::New,[this]{newDialog();});action(file,"&Import Image…",{},[this]{importImage();});action(file,"&Export Image…",QKeySequence("Ctrl+Shift+E"),[this]{exportImage();});file->addSeparator();action(file,"Close Project",QKeySequence::Close,[this]{closeProject(tabs_->currentIndex());});action(file,"Exit",QKeySequence("Alt+F4"),[this]{close();});
-action(file,"&Open Project…",QKeySequence::Open,[this]{openProjectDialog();});action(file,"&Save Project",QKeySequence::Save,[this]{saveProject();});action(file,"Save Project &As…",QKeySequence::SaveAs,[this]{saveProject(true);});
-auto*editMenu=menuBar()->addMenu("&Edit");undo_=action(editMenu,"Undo",QKeySequence::Undo,[this]{if(textSession_){undoTextTyping(false);return;}if(drawingOriginal_){cancelGradient();return;}if(auto*p=current())if(auto s=p->history.undo()){restoreHistorySnapshot(std::move(*s));}});redo_=action(editMenu,"Redo",QKeySequence::Redo,[this]{if(textSession_){undoTextTyping(true);return;}if(auto*p=current())if(auto s=p->history.redo()){restoreHistorySnapshot(std::move(*s));}});
-auto*layerMenu=menuBar()->addMenu("&Layer");action(layerMenu,"New Layer",QKeySequence("Ctrl+Shift+N"),[this]{newBlankLayer();});action(layerMenu,"Duplicate Layer",QKeySequence("Ctrl+Shift+J"),[this]{layerCommand(3);});action(layerMenu,"Rename Layer…",{},[this]{auto*l=active();if(!l)return;bool ok;auto name=QInputDialog::getText(this,"Rename Layer","Name",QLineEdit::Normal,QString::fromStdString(l->name),&ok).trimmed();if(ok&&!name.isEmpty())edit("Rename Layer",[&](Document&){active()->name=name.toStdString();});});action(layerMenu,"Delete Layer",{},[this]{layerCommand(6);});action(layerMenu,"Raise Layer",QKeySequence("Ctrl+]"),[this]{layerCommand(4);});action(layerMenu,"Lower Layer",QKeySequence("Ctrl+["),[this]{layerCommand(5);});
-auto*imageMenu=menuBar()->addMenu("&Image");action(imageMenu,"Fill…",{},[this]{pixelEdit(0);});action(imageMenu,"Invert",QKeySequence("Ctrl+I"),[this]{pixelEdit(2);});action(imageMenu,"Trim",{},[this]{edit("Trim",[](Document&d){d=editing::trimDocument(d);});});
-auto*view=menuBar()->addMenu("&View");action(view,"Fit Canvas",QKeySequence("Ctrl+0"),[this]{if(canvas())canvas()->fit();});action(view,"Actual Pixels",QKeySequence("Ctrl+1"),[this]{if(canvas())canvas()->zoomAt(1,canvas()->rect().center());});auto*grid=action(view,"Pixel Grid",{},[this]{if(canvas()){canvas()->showPixelGrid=!canvas()->showPixelGrid;canvas()->update();}});grid->setCheckable(true);auto*guidesAction=action(view,"Guides",{},[this]{auto*p=current();if(!p||!p->document||!canvas())return;if(p->document->guides.empty())edit("Add Guide",[p](Document&d){d.guides.push_back({newId(),true,d.height/2.});});canvas()->showGuides=!canvas()->showGuides;canvas()->guides.clear();if(canvas()->showGuides&&p->document)for(const auto&guide:p->document->guides)canvas()->guides.push_back({guide.horizontal,guide.position});canvas()->update();});guidesAction->setCheckable(true);auto*snap=action(view,"Snap",{},[this]{snapToGuides_=!snapToGuides_;});snap->setCheckable(true);snap->setChecked(true);auto*help=menuBar()->addMenu("&Help");action(help,"Keyboard Shortcuts…",{},[this]{QDialog dialog(this);dialog.setWindowTitle("Keyboard Shortcuts");QString text;for(const auto&spec:ui::commandCatalog())if(!spec.windowsShortcut.isEmpty())text+=spec.label+"    "+spec.windowsShortcut+"\n";auto*viewText=new QPlainTextEdit(text,&dialog);viewText->setReadOnly(true);auto*layout=new QVBoxLayout(&dialog);layout->addWidget(viewText);dialog.resize(520,640);dialog.exec();});action(help,"Check for Updates…",{},[this]{checkForUpdates();});action(help,"About Compositor",{},[this]{QMessageBox::about(this,"Compositor","<h3>Compositor Windows Preview</h3><p>An independent Windows port of Compositor by Robbie Tilton. Ported behavior follows upstream 1.0.4 through 1.4.5. The dependency pin remains the 1.0.4 commit a19db90. Mac equivalence is unverified.</p><p><a href=\"https://github.com/robbietilton/Compositor\">Original Compositor project</a><br>Copyright Wonder Assembly LLC. MIT source.</p><p>This independent port is not endorsed by the upstream author.</p><p>Qt and other dependency notices accompany this package.</p>");});
-auto* tools = addToolBar("Tools");
+MainWindow::MainWindow(bool warp):warp_(warp){
+    ui::installVisualStyle();
+    setWindowTitle(ui::tr("Compositor"));
+    resize(1280,820);
+    setAcceptDrops(true);
+    tabs_=new QTabWidget;
+    tabs_->setTabsClosable(true);
+    tabs_->setDocumentMode(true);
+    setCentralWidget(tabs_);
+    tabs_->setMovable(true);
+    connect(tabs_,&QTabWidget::currentChanged,this,[this]{switchProject();});
+    connect(tabs_,&QTabWidget::tabCloseRequested,this,[this](int i){closeProject(i);});
+    initializeCommands();
+
+    auto addMenu = [this](const QString& title) -> QMenu* {
+        auto* m = menuBar()->addMenu(ui::tr(title));
+        m->setProperty("rawText", title);
+        return m;
+    };
+
+    auto*file=addMenu("&File");
+    action(file,"&New Canvas…",QKeySequence::New,[this]{newDialog();});
+    action(file,"&Import Image…",{},[this]{importImage();});
+    action(file,"&Export Image…",QKeySequence("Ctrl+Shift+E"),[this]{exportImage();});
+    file->addSeparator();
+    action(file,"Close Project",QKeySequence::Close,[this]{closeProject(tabs_->currentIndex());});
+    action(file,"Exit",QKeySequence("Alt+F4"),[this]{close();});
+    action(file,"&Open Project…",QKeySequence::Open,[this]{openProjectDialog();});
+    action(file,"&Save Project",QKeySequence::Save,[this]{saveProject();});
+    action(file,"Save Project &As…",QKeySequence::SaveAs,[this]{saveProject(true);});
+
+    auto*editMenu=addMenu("&Edit");
+    undo_=action(editMenu,"Undo",QKeySequence::Undo,[this]{if(textSession_){undoTextTyping(false);return;}if(drawingOriginal_){cancelGradient();return;}if(auto*p=current())if(auto s=p->history.undo()){restoreHistorySnapshot(std::move(*s));}});
+    redo_=action(editMenu,"Redo",QKeySequence::Redo,[this]{if(textSession_){undoTextTyping(true);return;}if(auto*p=current())if(auto s=p->history.redo()){restoreHistorySnapshot(std::move(*s));}});
+
+    auto*layerMenu=addMenu("&Layer");
+    action(layerMenu,"New Layer",QKeySequence("Ctrl+Shift+N"),[this]{newBlankLayer();});
+    action(layerMenu,"Duplicate Layer",QKeySequence("Ctrl+Shift+J"),[this]{layerCommand(3);});
+    action(layerMenu,"Rename Layer…",{},[this]{auto*l=active();if(!l)return;bool ok;auto name=QInputDialog::getText(this,ui::tr("Rename Layer"),ui::tr("Name"),QLineEdit::Normal,QString::fromStdString(l->name),&ok).trimmed();if(ok&&!name.isEmpty())edit("Rename Layer",[&](Document&){active()->name=name.toStdString();});});
+    action(layerMenu,"Delete Layer",{},[this]{layerCommand(6);});
+    action(layerMenu,"Raise Layer",QKeySequence("Ctrl+]"),[this]{layerCommand(4);});
+    action(layerMenu,"Lower Layer",QKeySequence("Ctrl+["),[this]{layerCommand(5);});
+
+    auto*imageMenu=addMenu("&Image");
+    action(imageMenu,"Fill…",{},[this]{pixelEdit(0);});
+    action(imageMenu,"Invert",QKeySequence("Ctrl+I"),[this]{pixelEdit(2);});
+    action(imageMenu,"Trim",{},[this]{edit("Trim",[](Document&d){d=editing::trimDocument(d);});});
+
+    auto*view=addMenu("&View");
+    action(view,"Fit Canvas",QKeySequence("Ctrl+0"),[this]{if(canvas())canvas()->fit();});
+    action(view,"Actual Pixels",QKeySequence("Ctrl+1"),[this]{if(canvas())canvas()->zoomAt(1,canvas()->rect().center());});
+    auto*grid=action(view,"Pixel Grid",{},[this]{if(canvas()){canvas()->showPixelGrid=!canvas()->showPixelGrid;canvas()->update();}});
+    grid->setCheckable(true);
+    auto*guidesAction=action(view,"Guides",{},[this]{auto*p=current();if(!p||!p->document||!canvas())return;if(p->document->guides.empty())edit("Add Guide",[p](Document&d){d.guides.push_back({newId(),true,d.height/2.});});canvas()->showGuides=!canvas()->showGuides;canvas()->guides.clear();if(canvas()->showGuides&&p->document)for(const auto&guide:p->document->guides)canvas()->guides.push_back({guide.horizontal,guide.position});canvas()->update();});
+    guidesAction->setCheckable(true);
+    auto*snap=action(view,"Snap",{},[this]{snapToGuides_=!snapToGuides_;});
+    snap->setCheckable(true);
+    snap->setChecked(true);
+
+    auto*langMenu=addMenu("&Language");
+    auto*enAction=langMenu->addAction("English");
+    enAction->setProperty("rawText","English");
+    enAction->setCheckable(true);
+    auto*zhAction=langMenu->addAction(QString::fromUtf8("简体中文 (Simplified Chinese)"));
+    zhAction->setProperty("rawText","Simplified Chinese");
+    zhAction->setCheckable(true);
+
+    auto syncLang=[enAction,zhAction]{
+        bool isZh=(ui::I18nManager::instance().currentLanguage()==ui::Language::SimplifiedChinese);
+        zhAction->setChecked(isZh);
+        enAction->setChecked(!isZh);
+    };
+    syncLang();
+    connect(enAction,&QAction::triggered,this,[this,syncLang]{
+        ui::I18nManager::instance().setLanguage(ui::Language::English);
+        syncLang();
+    });
+    connect(zhAction,&QAction::triggered,this,[this,syncLang]{
+        ui::I18nManager::instance().setLanguage(ui::Language::SimplifiedChinese);
+        syncLang();
+    });
+
+    auto*help=addMenu("&Help");
+    action(help,"Keyboard Shortcuts…",{},[this]{QDialog dialog(this);dialog.setWindowTitle(ui::tr("Keyboard Shortcuts"));QString text;for(const auto&spec:ui::commandCatalog())if(!spec.windowsShortcut.isEmpty())text+=ui::tr(spec.label)+"    "+spec.windowsShortcut+"\n";auto*viewText=new QPlainTextEdit(text,&dialog);viewText->setReadOnly(true);auto*layout=new QVBoxLayout(&dialog);layout->addWidget(viewText);dialog.resize(520,640);dialog.exec();});
+    action(help,"Check for Updates…",{},[this]{checkForUpdates();});
+    action(help,"About Compositor",{},[this]{
+        QString aboutTitle=ui::tr("Compositor");
+        QString aboutBody=(ui::I18nManager::instance().currentLanguage()==ui::Language::SimplifiedChinese)
+            ? QString::fromUtf8("<h3>Compositor Windows 预览版</h3><p>Robbie Tilton 开发的 Compositor 独立 Windows 移植版本。移植行为遵循上游 1.0.4 至 1.4.8。依赖引脚基于 1.0.4 提交 a19db90。内置简体中文与英文双语支持。</p><p><a href=\"https://github.com/robbietilton/Compositor\">原始 Compositor 项目</a><br>版权所有 Wonder Assembly LLC。MIT 开源许可。</p><p>本独立移植版本未经上游作者背书。</p><p>Qt 及其它第三方开源依赖许可随本安装包分发。</p>")
+            : QString::fromUtf8("<h3>Compositor Windows Preview</h3><p>An independent Windows port of Compositor by Robbie Tilton. Ported behavior follows upstream 1.0.4 through 1.4.8. The dependency pin remains the 1.0.4 commit a19db90. Bilingual English and Simplified Chinese support included.</p><p><a href=\"https://github.com/robbietilton/Compositor\">Original Compositor project</a><br>Copyright Wonder Assembly LLC. MIT source.</p><p>This independent port is not endorsed by the upstream author.</p><p>Qt and other dependency notices accompany this package.</p>");
+        QMessageBox::about(this,aboutTitle,aboutBody);
+    });
+    ui::I18nManager::instance().registerRetranslateCallback(this,[this]{retranslateUi();});
+    auto* tools = addToolBar(ui::tr("Tools"));
+    tools->setProperty("rawText", "Tools");
 tools->setObjectName("tools");
 tools->setMovable(false);
 tools->setFloatable(false);
@@ -94,24 +183,57 @@ const ToolEntry entries[]{
 };
 for (const auto& entry : entries) {
     const bool alternate = entry.tool==Tool::Polygon || entry.tool==Tool::Eraser;
-    auto* a = alternate ? new QAction(ui::editorIcon(entry.icon),entry.label,tools)
-                        : tools->addAction(ui::editorIcon(entry.icon),entry.label);
+    QString trLabel = ui::tr(entry.label);
+    auto* a = alternate ? new QAction(ui::editorIcon(entry.icon),trLabel,tools)
+                        : tools->addAction(ui::editorIcon(entry.icon),trLabel);
     if(alternate)addAction(a);
     a->setCheckable(true);
-    a->setToolTip(entry.label);
+    a->setToolTip(trLabel);
+    a->setProperty("rawText", entry.label);
     a->setProperty("editorTool",int(entry.tool));
     bindCommand(a,"Tools",entry.label,[this,t=entry.tool]{selectTool(t==Tool::Brush&&brushMode_==ProjectBrushMode::Erase?Tool::Eraser:t);});
     if(entry.tool==Tool::Brush)a->setShortcut({});
     if(auto* button=qobject_cast<QToolButton*>(tools->widgetForAction(a))) {
         button->setProperty("editorToolButton",true);
-        button->setAccessibleName(entry.label);
+        button->setAccessibleName(trLabel);
         button->setFixedSize(36,36);
     }
 }
 auto*brushKey=new QAction("Brush (B)",this);bindCommand(brushKey,"Tools","Brush (B)",[this]{selectTool(Tool::Brush);});addAction(brushKey);
 setupPaletteControls(tools);
-auto*dock=new QDockWidget("Layers",this);dock->setObjectName("layersDock");auto*panel=new QWidget;auto*layout=new QVBoxLayout(panel);auto*blendPicker=new ui::PreviewComboBox;blend_=blendPicker;blendPicker->preview=[this](int index){if(index>=0&&index<int(blendNames.size()))previewBlendMode(Blend(index));};blendPicker->dismissed=[this]{previewBlendMode({});};blend_->setObjectName("layerBlend");blend_->setAccessibleName("Layer blend mode");for(auto n:blendNames)blend_->addItem(n);layout->addWidget(blend_);opacity_=new ui::TrackSlider(Qt::Horizontal);opacity_->setObjectName("layerOpacity");opacity_->setRange(0,100);opacity_->setAccessibleName("Layer opacity");layout->addWidget(createLayerOpacityControl());layers_=new QTreeWidget;layers_->setHeaderHidden(true);layers_->setAccessibleName("Layer list");layout->addWidget(layers_);dock->setWidget(panel);addDockWidget(Qt::RightDockWidgetArea,dock);connect(layers_,&QTreeWidget::itemChanged,this,[this](QTreeWidgetItem*i){if(refreshing_||!i)return;auto id=i->data(0,Qt::UserRole).toString().toStdString();bool visible=i->checkState(0)==Qt::Checked;edit("Layer Visibility",[&](Document&d){for(auto&l:d.layers)if(l.id==id){l.visible=visible;if(!i->text(0).trimmed().isEmpty())l.name=i->text(0).trimmed().toStdString();}});});connect(blend_,&QComboBox::currentIndexChanged,this,[this](int i){if(!refreshing_&&i>=0&&i<int(blendNames.size()))setLayerBlendMode(Blend(i));});connect(opacity_,&QSlider::sliderPressed,this,[this]{if(!canEditAppearance())return;finishOpacityEdit();opacityOwner_=current();if(opacityOwner_)opacityOwner_->history.begin("Layer Opacity",opacityOwner_->document,opacityOwner_->active);});connect(opacity_,&QSlider::sliderReleased,this,[this]{finishOpacityEdit();refresh(false);});connect(opacity_,&QSlider::valueChanged,this,[this](int v){if(!refreshing_&&canEditAppearance())edit("Layer Opacity",[&](Document&){active()->opacity=v/100.;});});
-auto*inspector=new QDockWidget("Transform",this);inspector->setObjectName("transformDock");auto*formWidget=new QWidget;auto*form=new QFormLayout(formWidget);const char*names[]{"X","Y","Width","Height","Angle"};for(int i=0;i<5;++i){auto*spin=new ui::PropertyNumber;spin->releaseFocus=[this]{if(canvas())canvas()->setFocus();};spin->setDecimals(3);spin->setRange(i==2||i==3?1:-1000000,i==2||i==3?300000:1000000);spin->setAccessibleName(names[i]);geometry_[i]=spin;form->addRow(names[i],spin);connect(spin,&QDoubleSpinBox::valueChanged,this,[this,i](double value){if(!refreshing_)editTransformGeometry(i,value);});}inspector->setWidget(formWidget);addDockWidget(Qt::RightDockWidgetArea,inspector);setupBrushControls();setupAdjustmentActions();setupSelectionActions();setupLayerActions();setupTransformActions();setupDrawingActions();setupTypeControls();setupRetouchActions();statusBar()->showMessage("Create a canvas or import an image");ui::installProjectChrome(this,tabs_,dock,layers_);ui::styleWorkspace(this);refresh(false);addEmptyProject(false);}
+auto*dock=new QDockWidget(ui::tr("Layers"),this);dock->setObjectName("layersDock");dock->setProperty("rawText","Layers");auto*panel=new QWidget;auto*layout=new QVBoxLayout(panel);auto*blendPicker=new ui::PreviewComboBox;blend_=blendPicker;blendPicker->preview=[this](int index){if(index>=0&&index<int(blendNames.size()))previewBlendMode(Blend(index));};blendPicker->dismissed=[this]{previewBlendMode({});};blend_->setObjectName("layerBlend");blend_->setAccessibleName("Layer blend mode");for(auto n:blendNames)blend_->addItem(n);layout->addWidget(blend_);opacity_=new ui::TrackSlider(Qt::Horizontal);opacity_->setObjectName("layerOpacity");opacity_->setRange(0,100);opacity_->setAccessibleName("Layer opacity");layout->addWidget(createLayerOpacityControl());layers_=new QTreeWidget;layers_->setHeaderHidden(true);layers_->setAccessibleName("Layer list");layout->addWidget(layers_);dock->setWidget(panel);addDockWidget(Qt::RightDockWidgetArea,dock);connect(layers_,&QTreeWidget::itemChanged,this,[this](QTreeWidgetItem*i){if(refreshing_||!i)return;auto id=i->data(0,Qt::UserRole).toString().toStdString();bool visible=i->checkState(0)==Qt::Checked;edit("Layer Visibility",[&](Document&d){for(auto&l:d.layers)if(l.id==id){l.visible=visible;if(!i->text(0).trimmed().isEmpty())l.name=i->text(0).trimmed().toStdString();}});});connect(blend_,&QComboBox::currentIndexChanged,this,[this](int i){if(!refreshing_&&i>=0&&i<int(blendNames.size()))setLayerBlendMode(Blend(i));});connect(opacity_,&QSlider::sliderPressed,this,[this]{if(!canEditAppearance())return;finishOpacityEdit();opacityOwner_=current();if(opacityOwner_)opacityOwner_->history.begin("Layer Opacity",opacityOwner_->document,opacityOwner_->active);});connect(opacity_,&QSlider::sliderReleased,this,[this]{finishOpacityEdit();refresh(false);});connect(opacity_,&QSlider::valueChanged,this,[this](int v){if(!refreshing_&&canEditAppearance())edit("Layer Opacity",[&](Document&){active()->opacity=v/100.;});});
+auto*inspector=new QDockWidget(ui::tr("Transform"),this);inspector->setObjectName("transformDock");inspector->setProperty("rawText","Transform");auto*formWidget=new QWidget;auto*form=new QFormLayout(formWidget);const char*names[]{"X","Y","Width","Height","Angle"};for(int i=0;i<5;++i){auto*spin=new ui::PropertyNumber;spin->releaseFocus=[this]{if(canvas())canvas()->setFocus();};spin->setDecimals(3);spin->setRange(i==2||i==3?1:-1000000,i==2||i==3?300000:1000000);spin->setAccessibleName(names[i]);geometry_[i]=spin;form->addRow(ui::tr(names[i]),spin);connect(spin,&QDoubleSpinBox::valueChanged,this,[this,i](double value){if(!refreshing_)editTransformGeometry(i,value);});}inspector->setWidget(formWidget);addDockWidget(Qt::RightDockWidgetArea,inspector);setupBrushControls();setupAdjustmentActions();setupSelectionActions();setupLayerActions();setupTransformActions();setupDrawingActions();setupTypeControls();setupRetouchActions();statusBar()->showMessage(ui::tr("Create a canvas or import an image"));ui::installProjectChrome(this,tabs_,dock,layers_);ui::styleWorkspace(this);refresh(false);addEmptyProject(false);retranslateUi();}
+void MainWindow::retranslateUi(){
+    setWindowTitle(ui::tr("Compositor"));
+    for(auto* action:findChildren<QAction*>()){
+        QVariant raw=action->property("rawText");
+        if(raw.isValid()&&!raw.toString().isEmpty()){
+            QString trText=ui::tr(raw.toString());
+            action->setText(trText);
+            if(!action->toolTip().isEmpty()){
+                action->setToolTip(trText);
+            }
+        }
+    }
+    for(auto* menu:findChildren<QMenu*>()){
+        QVariant raw=menu->property("rawText");
+        if(raw.isValid()&&!raw.toString().isEmpty()){
+            menu->setTitle(ui::tr(raw.toString()));
+        }
+    }
+    for(auto* dock:findChildren<QDockWidget*>()){
+        QVariant raw=dock->property("rawText");
+        if(raw.isValid()&&!raw.toString().isEmpty()){
+            dock->setWindowTitle(ui::tr(raw.toString()));
+        }
+    }
+    for(auto* bar:findChildren<QToolBar*>()){
+        QVariant raw=bar->property("rawText");
+        if(raw.isValid()&&!raw.toString().isEmpty()){
+            bar->setWindowTitle(ui::tr(raw.toString()));
+        }
+    }
+}
 void MainWindow::restoreHistorySnapshot(Snapshot snapshot){
     auto* project=current();if(!project)return;
     const bool keepDraft=selectionGesture_.active()&&selectionOwner_==project;

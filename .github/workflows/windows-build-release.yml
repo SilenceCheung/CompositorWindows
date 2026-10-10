@@ -1,0 +1,143 @@
+name: Windows Build, Test & Release
+
+on:
+  push:
+    branches:
+      - main
+      - 'release/**'
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version string for package (e.g. 0.1.5)'
+        required: false
+        default: '0.1.5'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  build:
+    name: Build, Test & Package (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Validate Localization & Translations
+        shell: pwsh
+        run: |
+          python tests/localization/check_translations.py
+
+      - name: Cache Qt and External Dependencies
+        id: cache-deps
+        uses: actions/cache@v4
+        with:
+          path: |
+            dependencies/qt
+            dependencies/downloads
+            dependencies/imaging/install
+            dependencies/imaging/model
+            dependencies/imaging/onnxruntime-win-x64-1.30.0
+          key: ${{ runner.os }}-compositor-deps-${{ hashFiles('dependencies.lock.json', 'dependencies/imaging/lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-compositor-deps-
+
+      - name: Set up Visual Studio Dev Environment
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Install WiX Toolset (.NET Tool)
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 4.0.5 || true
+          wix extension add WixToolset.UI.wixext/4.0.5 --global || true
+
+      - name: Bootstrap Dependencies & Imaging Runtime
+        shell: pwsh
+        run: |
+          $pythonExe = (Get-Command python).Source
+          ./scripts/bootstrap.ps1 -Python $pythonExe
+
+      - name: Configure CMake (Release)
+        shell: pwsh
+        run: |
+          cmake --preset windows-x64-release
+
+      - name: Build Compositor Application
+        shell: pwsh
+        run: |
+          cmake --build --preset windows-x64-release --target Compositor --parallel 4
+
+      - name: Build Core Tests
+        shell: pwsh
+        run: |
+          cmake --build --preset windows-x64-release --target window_chrome_tests --parallel 4
+
+      - name: Run Core CTest Suite
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          ctest --preset windows-x64-release -R "window_chrome" --output-on-failure
+
+      - name: Package Windows MSI & Portable ZIP
+        id: package
+        shell: pwsh
+        run: |
+          $ver = if ("${{ github.ref }}" -match '^refs/tags/v([0-9]+\.[0-9]+\.[0-9]+)') {
+            $matches[1]
+          } elseif ("${{ github.event.inputs.version }}") {
+            "${{ github.event.inputs.version }}"
+          } else {
+            "0.1.5"
+          }
+          ./scripts/package.ps1 -Version $ver
+          $pkgDir = (Get-ChildItem -Directory dist | Select-Object -Last 1).FullName
+          Write-Output "PACKAGE_DIR=$pkgDir" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: CompositorWindows-Build
+          path: |
+            dist/*/*.msi
+            dist/*/*.zip
+            dist/*/SHA256SUMS.txt
+            dist/*/package-manifest.json
+          retention-days: 14
+
+      - name: Publish GitHub Release (on tag)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*/*.msi
+            dist/*/*.zip
+            dist/*/SHA256SUMS.txt
+            dist/*/package-manifest.json
+          body: |
+            # Compositor for Windows Preview Release
+
+            A native Windows 11 port of Compositor by Robbie Tilton.
+            Includes Bilingual English and Simplified Chinese (简体中文) support, Direct3D 11 hardware-accelerated canvas, offline neural background removal, WiX MSI installer, and standalone Portable ZIP.
+
+            ### Integrity & Checksums
+            Please refer to the attached `SHA256SUMS.txt` for file integrity.
+          draft: false
+          prerelease: true

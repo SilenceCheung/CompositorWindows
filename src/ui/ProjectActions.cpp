@@ -5,6 +5,7 @@
 #include "LayerMergeJob.h"
 #include "LayerPanel.h"
 #include "EditorIcons.h"
+#include "I18nManager.h"
 #include <QApplication>
 #include <QClipboard>
 #include <QDialogButtonBox>
@@ -27,6 +28,7 @@ void detach(NativeCanvas*canvas){
 }
 }
 MainWindow::~MainWindow(){
+    ui::I18nManager::instance().unregisterRetranslateCallback(this);
     detachOpacityPercent();
     qApp->removeEventFilter(this);stopSelectionAutoscroll();
     cancelEditPanel();

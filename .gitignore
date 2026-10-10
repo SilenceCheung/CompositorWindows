@@ -64,3 +64,5 @@ CMakeFiles/
 *.idb
 *.tlog
 *.VC.db
+.DS_Store
+upstream-official/

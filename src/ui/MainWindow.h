@@ -384,6 +384,7 @@ public:
     bool openProjectPaths(const QStringList&);
     NativeCanvas* canvas(){auto*p=current();return p?p->canvas:nullptr;}
     QString brushAdapterName()const{return brushGpu_?QString::fromStdString(brushGpu_->adapterName()):QString{};}
+    void retranslateUi();
     void exerciseNativeUi(const QString& evidenceDirectory);
 };
 }

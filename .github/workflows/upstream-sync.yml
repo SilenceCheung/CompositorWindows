@@ -1,0 +1,64 @@
+name: Upstream Sync Check
+
+on:
+  schedule:
+    - cron: '0 2 * * 1' # Runs every Monday at 02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-upstream:
+    name: Check Upstream Changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Configure Git Remotes
+        run: |
+          git remote add upstream https://github.com/robbietilton/Compositor.git || true
+          git fetch upstream --tags --prune
+
+      - name: Run Upstream Sync Analyzer
+        id: sync
+        run: |
+          python3 scripts/upstream-sync.py
+
+      - name: Check for Tracking Document Diff
+        id: diff
+        run: |
+          if git status --porcelain docs/upstream-tracking.md | grep -q "docs/upstream-tracking.md"; then
+            echo "has_diff=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_diff=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Pull Request with Upstream Updates
+        if: steps.diff.outputs.has_diff == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(upstream): update upstream tracking records"
+          branch: "upstream-sync-auto"
+          title: "🔄 Upstream Sync: New commits detected from robbietilton/Compositor"
+          body: |
+            ## Upstream Synchronization Report
+
+            New upstream commits have been detected in the official `robbietilton/Compositor` repository.
+            `docs/upstream-tracking.md` has been updated with the latest difference summary.
+
+            Please review the changes and evaluate whether any new core C algorithms or features require Windows porting.
+          labels: "upstream-sync, automated"
