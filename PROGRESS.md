@@ -3,10 +3,10 @@
 Windows preview **0.1.7** is aligned with upstream Mac release **v1.4.9** (`0ab3ff58`), incorporating WebP image import decoding and dialog filters, full PSD/PSB drag-and-drop and open-as-project decoding via native pure C++ PSD engine, Command/Control middle-button drag zoom matching upstream Blender-like gesture, upstream dependency lock pin updated to official release commit `0ab3ff58a3dcf3d52a455fe3ab0336ac95923edd`, and bilingual localization (Simplified Chinese & English) validation 100% passed.
 
 The 0.1.7 production release packages are built on `windows-2022` MSVC toolchain, verified, and placed in `./dist`:
-- `CompositorWindows-0.1.7-x64.msi` (`a8dab0e14a2395d9026b1f1d46cd30a0ab1f1935993c5f8c2bcaa171054ebd5a`)
-- `CompositorWindows-0.1.7-portable.zip` (`de6895edcabddc284ab3611854375cbed78b6f2afc59bf3425a80f7a9fe65cce`)
-- `CompositorWindows-0.1.7-demo.zip` (`0ad53ef1a6eb07b74934fd8d8c83d90ad4d601481b8061df14e39de160317301`)
-- `CompositorWindows-0.1.7-source.zip` (`26a952e66ae247bd92b34b53925593ffcc6ec759fe28de804ef23dbc2b7d1f27`)
+- `CompositorWindows-0.1.7-x64.msi` (`91dfe2d14c1f6350321ad3eafdd004ac26327baa6f98d2b8c79ff4b5e1ec7525`)
+- `CompositorWindows-0.1.7-portable.zip` (`7b6b1d202c26e62b9ef6b4675c3e4a7c1108b855c8191a3bac9975f54de78295`)
+- `CompositorWindows-0.1.7-demo.zip` (`0bbff5ceb9acb153ee80420c84efceae946f341ec882e16b3807f87c6a1da1af`)
+- `CompositorWindows-0.1.7-source.zip` (`f1dc34cdfa6ebac51a696db8d4a76ec46a8ddd6a8ec3ad9721a0179b5ce2a9a3`)
 - Manifest and SHA256SUMS.txt integrity verified 100%. All runtime dependencies, neural models, and translations are self-contained with no target host requirements.
 
 Windows preview **0.1.6** is aligned with upstream Mac release **v1.4.8** (`75147a2`), incorporating destructive Camera Raw Filter restyling, Scanlines filter, single-page lossless PDF export, Canvas 90° Clockwise and Counterclockwise rotation, bilingual runtime support (Simplified Chinese 简体中文 and English) with zero-restart dynamic switching, upstream synchronization tracking, and automated GitHub Actions CI/CD workflows for Windows x64 Release MSI/ZIP packaging.
