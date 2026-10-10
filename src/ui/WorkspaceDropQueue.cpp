@@ -57,7 +57,11 @@ void WorkspaceDropQueue::drain(){
         if(!p.host.canAdvance()){p.retry.start();return;}
         const auto path=p.running->paths[p.index++];
         try{
-            if(QFileInfo(path).suffix().compare("comp",Qt::CaseInsensitive)==0){p.host.project(path);continue;}
+            const auto suffix=QFileInfo(path).suffix();
+            if(suffix.compare("comp",Qt::CaseInsensitive)==0 || (!p.running->hasDestination && (suffix.compare("psd",Qt::CaseInsensitive)==0 || suffix.compare("psb",Qt::CaseInsensitive)==0))){
+                p.host.project(path);
+                continue;
+            }
             auto* target=p.host.imageTarget(p.running->destination,p.running->hasDestination);if(!target)continue;
             p.waiting=target;p.waitingActive=true;
             p.host.image(target,path,p.running->point,p.running->lifetime);

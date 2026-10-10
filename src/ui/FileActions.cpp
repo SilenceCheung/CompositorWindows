@@ -100,7 +100,7 @@ ui::WorkspaceDropQueue* MainWindow::ensureWorkspaceDropQueue(){
     host.canBegin=[this]{return !closingWindow_&&canSwitchProjects()&&(!importQueue_||importQueue_->idle());};
     host.canAdvance=[this]{return !QApplication::activeModalWidget()&&(!importQueue_||importQueue_->idle());};
     host.managing=[this](bool active){managingProjectOpen_=active;refresh(false,false);};
-    host.project=[this](const QString& path){loadProjectDirectory(path);};
+    host.project=[this](const QString& path){if(QFileInfo(path).isDir())loadProjectDirectory(path);else openPath(path);};
     host.imageTarget=[this,project](QObject* captured,bool hasDestination)->QObject*{
         QScopedValueRollback<bool> selecting(selectingProjectForOpen_,true);
         auto* target=hasDestination?project(captured):&addEmptyProject();if(!target)return nullptr;
@@ -281,6 +281,21 @@ void MainWindow::openPath(const QString&path){
         const auto update=qScopeGuard([this]{refresh(false,false);});
         QScopedValueRollback<bool> managing(managingProjectOpen_,true);refresh(false,false);
         loadProjectDirectory(path);return;
+    }
+    const auto ext=QFileInfo(path).suffix().toLower();
+    if(ext=="psd"||ext=="psb"){
+        try{
+            auto imported=imaging::readPsd(nativePath(path));
+            const bool reuse=!current()||!importQueue_||!importQueue_->contains(current()->canvas);
+            auto& project=addProject(std::move(imported.document),QFileInfo(path).fileName(),reuse);
+            project.path=path;
+            if(project.document){project.active=project.document->layers.back().id;project.selected={project.active};}
+            refresh();project.canvas->fit();
+            return;
+        }catch(const std::exception& error){
+            QMessageBox::critical(this,"Open PSD",error.what());
+            return;
+        }
     }
     applyGradient();if(transformSession_&&transformSession_->persistent)applyTransformSession();
     const bool reuse=!current()||!importQueue_||!importQueue_->contains(current()->canvas);

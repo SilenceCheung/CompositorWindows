@@ -3,6 +3,7 @@
 #include "imaging/heif_codec.h"
 #include "imaging/svg_raster.h"
 #include "imaging/raw_develop.h"
+#include "imaging/psd/PsdDocument.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QImage>
@@ -35,6 +36,21 @@ imaging::DecodedImage decodeImportImage(const std::filesystem::path& path,const 
             out.metadata.decoder="WebP";
             return out;
         }
+    }
+    if(extension==".psd"||extension==".psb"){
+        auto imported=imaging::readPsd(path);
+        auto rendered=SoftwareRenderer().render(imported.document,0,0,imported.document.width,imported.document.height);
+        if(!rendered)throw std::runtime_error("Cannot render PSD");
+        imaging::DecodedImage out;
+        out.image.width=uint32_t(rendered->width);
+        out.image.height=uint32_t(rendered->height);
+        out.image.stride=size_t(rendered->width)*4;
+        out.image.pixels=rendered->rgba();
+        out.metadata.originalOrientation=1;
+        out.metadata.dpiX=imported.document.resolution>0?imported.document.resolution:72;
+        out.metadata.dpiY=imported.document.resolution>0?imported.document.resolution:72;
+        out.metadata.decoder="Photoshop";
+        return out;
     }
     QFile file(QString::fromStdWString(path.wstring()));
     if(!file.open(QIODevice::ReadOnly))throw std::runtime_error("Cannot open image");

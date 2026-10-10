@@ -1,6 +1,6 @@
 # Current checkpoint
 
-Windows preview **0.1.7** is aligned with upstream Mac release **v1.4.9** (`0ab3ff58`), incorporating WebP image import decoding and dialog filters, Command/Control middle-button drag zoom matching upstream Blender-like gesture, upstream dependency lock pin updated to official release commit `0ab3ff58a3dcf3d52a455fe3ab0336ac95923edd`, and bilingual localization (Simplified Chinese & English) validation 100% passed.
+Windows preview **0.1.7** is aligned with upstream Mac release **v1.4.9** (`0ab3ff58`), incorporating WebP image import decoding and dialog filters, full PSD/PSB drag-and-drop and open-as-project decoding via native pure C++ PSD engine, Command/Control middle-button drag zoom matching upstream Blender-like gesture, upstream dependency lock pin updated to official release commit `0ab3ff58a3dcf3d52a455fe3ab0336ac95923edd`, and bilingual localization (Simplified Chinese & English) validation 100% passed.
 
 The 0.1.7 production release packages are built on `windows-2022` MSVC toolchain, verified, and placed in `./dist`:
 - `CompositorWindows-0.1.7-x64.msi` (`a8dab0e14a2395d9026b1f1d46cd30a0ab1f1935993c5f8c2bcaa171054ebd5a`)
