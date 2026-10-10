@@ -54,9 +54,10 @@ jobs:
             dependencies/imaging/install
             dependencies/imaging/model
             dependencies/imaging/onnxruntime-win-x64-1.30.0
-          key: ${{ runner.os }}-compositor-deps-${{ hashFiles('dependencies.lock.json', 'dependencies/imaging/lock.json') }}
+            dependencies/packaging
+          key: ${{ runner.os }}-compositor-deps-v3-${{ hashFiles('dependencies.lock.json', 'dependencies/imaging/lock.json', 'scripts/msi/toolchain.json') }}
           restore-keys: |
-            ${{ runner.os }}-compositor-deps-
+            ${{ runner.os }}-compositor-deps-v3-
 
       - name: Set up Visual Studio Dev Environment
         uses: ilammy/msvc-dev-cmd@v1
@@ -75,6 +76,7 @@ jobs:
         run: |
           $pythonExe = (Get-Command python).Source
           ./scripts/bootstrap.ps1 -Python $pythonExe
+          ./scripts/bootstrap-packaging.ps1
 
       - name: Configure CMake (Release)
         shell: pwsh

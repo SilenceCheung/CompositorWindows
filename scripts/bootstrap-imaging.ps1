@@ -50,22 +50,39 @@ Configure-Build 'libheif' @('-DENABLE_PLUGIN_LOADING=OFF','-DWITH_LIBDE265=ON','
 if(-not $SkipModel){
     Expand-Archive (Join-Path $dependency 'onnxruntime-win-x64-1.30.0.zip') -DestinationPath $dependency -Force
     $model=Join-Path $dependency 'model/birefnet-lite.onnx'
-    if(-not (Test-Path $model)){
+    $targetHeif=Join-Path $prefix 'bin/heif.dll'
+    $targetDe265=Join-Path $prefix 'bin/libde265.dll'
+    $needRestore = (-not (Test-Path $model)) -or `
+                   (-not (Test-Path $targetHeif)) -or ((Get-FileHash -LiteralPath $targetHeif -Algorithm SHA256).Hash -ine $lock.binaries[0].sha256) -or `
+                   (-not (Test-Path $targetDe265)) -or ((Get-FileHash -LiteralPath $targetDe265 -Algorithm SHA256).Hash -ine $lock.binaries[1].sha256)
+    if($needRestore){
         $portableZip = Join-Path $dependency 'temp-portable.zip'
         try {
-            Write-Host 'Fetching pinned model from upstream release...'
+            Write-Host 'Fetching pinned runtime and model from baseline release...'
             Invoke-WebRequest -Uri 'https://github.com/Cengokill/CompositorWindows/releases/download/v0.1.5/CompositorWindows-0.1.5-portable.zip' -OutFile $portableZip
             Add-Type -AssemblyName System.IO.Compression.FileSystem
             $archive = [System.IO.Compression.ZipFile]::OpenRead($portableZip)
-            $entry = $archive.Entries | Where-Object { $_.FullName -like '*birefnet-lite.onnx' } | Select-Object -First 1
-            if ($entry) {
-                New-Item -ItemType Directory -Force (Split-Path $model) | Out-Null
-                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $model, $true)
+            if (-not (Test-Path $model)) {
+                $entry = $archive.Entries | Where-Object { $_.FullName -like '*birefnet-lite.onnx' } | Select-Object -First 1
+                if ($entry) {
+                    New-Item -ItemType Directory -Force (Split-Path $model) | Out-Null
+                    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, $model, $true)
+                }
+            }
+            $heifEntry = $archive.Entries | Where-Object { $_.Name -ieq 'heif.dll' } | Select-Object -First 1
+            if ($heifEntry) {
+                New-Item -ItemType Directory -Force (Split-Path $targetHeif) | Out-Null
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($heifEntry, $targetHeif, $true)
+            }
+            $de265Entry = $archive.Entries | Where-Object { $_.Name -ieq 'libde265.dll' } | Select-Object -First 1
+            if ($de265Entry) {
+                New-Item -ItemType Directory -Force (Split-Path $targetDe265) | Out-Null
+                [System.IO.Compression.ZipFileExtensions]::ExtractToFile($de265Entry, $targetDe265, $true)
             }
             $archive.Dispose()
             Remove-Item -Force $portableZip -ErrorAction SilentlyContinue
         } catch {
-            Write-Warning "Could not fetch model from release: $_"
+            Write-Warning "Could not fetch runtime/model from release: $_"
         }
     }
     if(-not (Test-Path $model)){
@@ -78,6 +95,10 @@ if(-not $SkipModel){
         & $pythonExe (Join-Path $root 'tests/imaging/convert_birefnet.py');if($LASTEXITCODE){throw 'Model conversion/verification failed'}
     }
     Assert-Hash $model $lock.model.onnx_sha256
+    foreach($binary in $lock.binaries){
+        $binPath=Join-Path $dependency $binary.path
+        Assert-Hash $binPath $binary.sha256
+    }
 }
 Write-Output 'Pinned imaging dependencies are available locally.'
 

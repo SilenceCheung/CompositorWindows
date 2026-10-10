@@ -1,11 +1,11 @@
-param([switch]$SkipBuild,[switch]$PortableOnly,[string]$Version='0.1.6')
+param([switch]$SkipBuild,[switch]$PortableOnly,[string]$Version='0.1.6',[switch]$Offline)
 $ErrorActionPreference='Stop'
 $packageRoot=Split-Path $PSScriptRoot -Parent
 if($Version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'){throw 'Version must be a numeric semantic version'}
 $versionParts=$Version.Split('.')
 if([long]$versionParts[0] -gt 255 -or [long]$versionParts[1] -gt 255 -or [long]$versionParts[2] -gt 65535){throw 'MSI version must fit 255.255.65535'}
-. (Join-Path $PSScriptRoot 'bootstrap.ps1') -Offline
-& (Join-Path $PSScriptRoot 'bootstrap-packaging.ps1') -Offline -PortableOnly:$PortableOnly
+. (Join-Path $PSScriptRoot 'bootstrap.ps1') -Offline:$Offline
+& (Join-Path $PSScriptRoot 'bootstrap-packaging.ps1') -Offline:$Offline -PortableOnly:$PortableOnly
 Push-Location $packageRoot
 try {
  if(-not $SkipBuild){
@@ -44,7 +44,8 @@ try {
  Copy-Item -LiteralPath (Join-Path $packageRoot 'LICENSE') -Destination (Join-Path $payload 'licenses\Compositor-MIT.txt')
  Copy-Item -Path (Join-Path $imaging 'notices\*') -Destination (Join-Path $payload 'licenses') -Recurse
  Copy-Item -LiteralPath (Join-Path $packageRoot 'dependencies\packaging\notices\Qt') -Destination (Join-Path $payload 'licenses\Qt') -Recurse
- Copy-Item -LiteralPath (Join-Path $packageRoot 'dependencies\qt\sbom') -Destination (Join-Path $payload 'licenses\Qt-SBOM') -Recurse
+ $qtSbom=Join-Path $packageRoot 'dependencies\qt\sbom'
+ if(Test-Path -LiteralPath $qtSbom){Copy-Item -LiteralPath $qtSbom -Destination (Join-Path $payload 'licenses\Qt-SBOM') -Recurse}
  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'msi\PACKAGE-NOTICES.txt') -Destination (Join-Path $payload 'licenses\README.txt')
  $wixLicense=Join-Path $packageRoot 'dependencies\packaging\WIX-LICENSE.txt'
  if(Test-Path -LiteralPath $wixLicense){Copy-Item -LiteralPath $wixLicense -Destination (Join-Path $payload 'licenses')}

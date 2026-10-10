@@ -33,6 +33,14 @@ $env:PATH = "$taskQt\bin;$env:PATH"
 $env:PATH = "$taskRoot\dependencies\imaging\install\bin;$taskRoot\dependencies\imaging\onnxruntime-win-x64-1.30.0\lib;$env:PATH"
 $env:QT_PLUGIN_PATH = Join-Path $taskQt 'plugins'
 $taskImaging = Join-Path $taskRoot 'dependencies\imaging'
+$taskHeif = Join-Path $taskImaging 'install\bin\heif.dll'
+if ((Test-Path -LiteralPath $taskHeif) -and ((Get-FileHash -LiteralPath $taskHeif -Algorithm SHA256).Hash -ine '172e241ed638c4ec250deb8e3fe35869087330463adc8f7ada791d1ba2844fba')) {
+    Remove-Item -Force $taskHeif
+}
+$taskDe265 = Join-Path $taskImaging 'install\bin\libde265.dll'
+if ((Test-Path -LiteralPath $taskDe265) -and ((Get-FileHash -LiteralPath $taskDe265 -Algorithm SHA256).Hash -ine '064ea0c514e8bbd53ba2a0a4f1febb4b7c35edc92fe654efa81d320ca25122b0')) {
+    Remove-Item -Force $taskDe265
+}
 $taskRequired = @('install\bin\heif.dll','install\bin\libde265.dll','install\lib\heif.lib','install\lib\de265.lib','install\include\libheif\heif.h','onnxruntime-win-x64-1.30.0\lib\onnxruntime.dll','onnxruntime-win-x64-1.30.0\lib\onnxruntime_providers_shared.dll','onnxruntime-win-x64-1.30.0\lib\onnxruntime.lib','onnxruntime-win-x64-1.30.0\include\onnxruntime_cxx_api.h','model\birefnet-lite.onnx')
 $taskMissing = @($taskRequired | Where-Object { -not (Test-Path -LiteralPath (Join-Path $taskImaging $_)) })
 if ($taskMissing.Count) {
@@ -48,5 +56,7 @@ if ($RuntimeDirectory) {
     & (Join-Path $PSScriptRoot 'restore-imaging-runtime.ps1') -RuntimeDirectory $RuntimeDirectory
 }
 if ((Get-FileHash -LiteralPath (Join-Path $taskImaging 'model\birefnet-lite.onnx') -Algorithm SHA256).Hash -ine 'c0faf38f5504f2239f1e6481ce4ac166b17435b38ea35e480d811a47bc1aba80') { throw 'Foreground model SHA256 mismatch.' }
+if ((Get-FileHash -LiteralPath (Join-Path $taskImaging 'install\bin\heif.dll') -Algorithm SHA256).Hash -ine '172e241ed638c4ec250deb8e3fe35869087330463adc8f7ada791d1ba2844fba') { throw 'heif.dll SHA256 mismatch.' }
+if ((Get-FileHash -LiteralPath (Join-Path $taskImaging 'install\bin\libde265.dll') -Algorithm SHA256).Hash -ine '064ea0c514e8bbd53ba2a0a4f1febb4b7c35edc92fe654efa81d320ca25122b0') { throw 'libde265.dll SHA256 mismatch.' }
 & cmake --version
 Write-Host "Ready: Qt $($taskLock.qt.version), MSVC $env:VCToolsVersion, SDK $env:WindowsSDKVersion. Run cmake --preset windows-x64-debug from $taskRoot."
