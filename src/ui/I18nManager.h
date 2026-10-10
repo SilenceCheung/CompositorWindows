@@ -13,8 +13,7 @@ enum class Language {
     SimplifiedChinese
 };
 
-class I18nManager final : public QObject {
-    Q_OBJECT
+class I18nManager final {
 public:
     static I18nManager& instance();
 
@@ -38,12 +37,9 @@ public:
     void registerRetranslateCallback(void* owner, std::function<void()> callback);
     void unregisterRetranslateCallback(void* owner);
 
-signals:
-    void languageChanged(Language newLang);
-
 private:
     I18nManager();
-    ~I18nManager() override = default;
+    ~I18nManager() = default;
 
     void initDictionary();
 

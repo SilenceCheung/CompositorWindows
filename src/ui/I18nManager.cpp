@@ -49,8 +49,6 @@ void I18nManager::setLanguage(Language lang) {
             entry.callback();
         }
     }
-
-    emit languageChanged(lang);
 }
 
 void I18nManager::registerRetranslateCallback(void* owner, std::function<void()> callback) {
