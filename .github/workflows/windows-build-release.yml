@@ -63,11 +63,12 @@ jobs:
         with:
           arch: x64
 
-      - name: Install WiX Toolset (.NET Tool)
+      - name: Install WiX Toolset (.NET Tool) & Ninja
         shell: pwsh
         run: |
           dotnet tool install --global wix --version 4.0.5 || true
           wix extension add WixToolset.UI.wixext/4.0.5 --global || true
+          choco install ninja --no-progress || true
 
       - name: Bootstrap Dependencies & Imaging Runtime
         shell: pwsh

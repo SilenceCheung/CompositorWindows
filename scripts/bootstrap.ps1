@@ -1,10 +1,19 @@
 param([switch]$Offline,[string]$Python,[string]$RuntimeDirectory)
 $ErrorActionPreference = 'Stop'
 $taskRoot = Split-Path $PSScriptRoot -Parent
-$taskVswhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
-$taskVS = & $taskVswhere -version '[17.0,18.0)' -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1
-if (-not $taskVS) { throw 'Install Visual Studio 2022 C++ x64 tools and Windows 11 SDK. No privileged installation is performed by bootstrap.' }
-& (Join-Path $taskVS 'Common7\Tools\Launch-VsDevShell.ps1') -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+$taskVS = if ($env:VSINSTALLDIR -and (Test-Path $env:VSINSTALLDIR)) {
+    $env:VSINSTALLDIR.TrimEnd('\')
+} else {
+    $taskVswhere = 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe'
+    if (Test-Path $taskVswhere) {
+        & $taskVswhere -version '[17.0,19.0)' -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath | Select-Object -First 1
+    }
+}
+if (-not $taskVS) { throw 'Install Visual Studio 2022/2025 C++ x64 tools and Windows 11 SDK. No privileged installation is performed by bootstrap.' }
+$devShell = Join-Path $taskVS 'Common7\Tools\Launch-VsDevShell.ps1'
+if (Test-Path $devShell) {
+    & $devShell -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+}
 if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) { $env:PATH = "$taskVS\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin;$env:PATH" }
 $taskLock = Get-Content (Join-Path $taskRoot 'dependencies.lock.json') -Raw | ConvertFrom-Json
 $taskArchive = Join-Path $taskRoot 'dependencies\downloads\qtbase.7z'

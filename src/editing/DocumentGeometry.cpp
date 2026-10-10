@@ -70,6 +70,43 @@ Document flipCanvas(const Document& doc,bool horizontal){
     }
     validateDocument(result);return result;
 }
+Transform rotatedTransform(const Transform& t,bool clockwise,int oldWidth,int oldHeight){
+    if(!t.valid())throw std::runtime_error("Invalid transform coordinate");
+    auto result=t;
+    double cx=t.x+t.width/2.0,cy=t.y+t.height/2.0;
+    double newCx=clockwise?(double(oldHeight)-cy):cy;
+    double newCy=clockwise?cx:(double(oldWidth)-cx);
+    result.x=newCx-t.width/2.0;
+    result.y=newCy-t.height/2.0;
+    double delta=clockwise?90.0:-90.0;
+    result.rotation=std::fmod(t.rotation+delta,360.0);
+    if(!result.valid())throw std::runtime_error("Rotated transform exceeds limits");
+    return result;
+}
+Document rotateCanvas(const Document& doc,bool clockwise){
+    validateDocument(doc);
+    auto result=doc;
+    result.width=doc.height;
+    result.height=doc.width;
+    for(auto& layer:result.layers){
+        layer.transform=rotatedTransform(layer.transform,clockwise,doc.width,doc.height);
+        if(layer.mask&&layer.mask->placement){
+            layer.mask->placement=rotatedTransform(*layer.mask->placement,clockwise,doc.width,doc.height);
+        }
+    }
+    for(auto& guide:result.guides){
+        if(guide.horizontal){
+            guide.horizontal=false;
+            guide.position=clockwise?(double(doc.height)-guide.position):guide.position;
+        }else{
+            guide.horizontal=true;
+            guide.position=clockwise?guide.position:(double(doc.width)-guide.position);
+        }
+    }
+    result.selection.reset();
+    validateDocument(result);
+    return result;
+}
 Document flipLayers(const Document& doc,std::span<const std::string> selected,bool horizontal){
     validateDocument(doc);if(selected.empty())return doc;auto index=indexLayers(doc);std::unordered_set<std::string> ids(selected.begin(),selected.end());for(const auto& id:ids)if(!index.contains(id))throw std::runtime_error("Selected mirror layer does not exist");bool group=ids.size()>1||index.at(*ids.begin())->group;std::vector<const Layer*> members;
     if(!group){const auto* layer=index.at(*ids.begin());if(visible(*layer,index))members.push_back(layer);}else for(const auto& layer:doc.layers){if(layer.group||!layer.raster||!visible(layer,index))continue;const Layer* current=&layer;for(size_t depth=0;depth<64;++depth){if(ids.contains(current->id)){members.push_back(&layer);break;}if(current->parentId.empty())break;current=index.at(current->parentId);}}

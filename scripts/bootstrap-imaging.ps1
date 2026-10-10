@@ -1,6 +1,6 @@
 param(
-    [string]$VsRoot='C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools',
-    [string]$Python=(Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe'),
+    [string]$VsRoot=$(if ($env:VSINSTALLDIR) { $env:VSINSTALLDIR.TrimEnd('\') } else { 'C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools' }),
+    [string]$Python=$(if ($env:USERPROFILE) { Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe' } else { 'python.exe' }),
     [switch]$SkipModel
 )
 $ErrorActionPreference='Stop'
@@ -31,9 +31,12 @@ foreach($repository in $lock.repositories){
     if($LASTEXITCODE){throw 'Source archive failed'}
     Assert-Hash $archive $repository.source_archive_sha256
 }
-& (Join-Path $VsRoot 'Common7/Tools/Launch-VsDevShell.ps1') -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
-$cmake=Join-Path $VsRoot 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe'
-$ninja=Join-Path $VsRoot 'Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe'
+$devShell = Join-Path $VsRoot 'Common7/Tools/Launch-VsDevShell.ps1'
+if (Test-Path $devShell) {
+    & $devShell -Arch amd64 -HostArch amd64 -SkipAutomaticLocation
+}
+$cmake = if (Get-Command cmake -ErrorAction SilentlyContinue) { (Get-Command cmake).Source } else { Join-Path $VsRoot 'Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe' }
+$ninja = if (Get-Command ninja -ErrorAction SilentlyContinue) { (Get-Command ninja).Source } else { Join-Path $VsRoot 'Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe' }
 $prefix=Join-Path $dependency 'install'
 function Configure-Build([string]$Name,[string[]]$Options){
     $source=Join-Path $dependency $Name;$build=Join-Path $dependency ($Name+'-ninja')

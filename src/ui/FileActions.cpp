@@ -6,6 +6,9 @@
 #include "imaging/psd/PsdDocument.h"
 #include <QSlider>
 #include "core/DocumentExport.h"
+#include <QPdfWriter>
+#include <QPainter>
+#include <QPageSize>
 #include "ImportActions.h"
 #include "ImportCommit.h"
 #include "ProjectOpenDialog.h"
@@ -293,7 +296,7 @@ void MainWindow::exportImage(){
     struct Restore {std::function<void()> action;~Restore(){action();}} restore{[&]{p->projectBusy=false;refresh(false,false);}};
     QTemporaryDir temp;if(!temp.isValid())throw std::runtime_error("Cannot create image export storage");
     QDialog dialog(this);dialog.setObjectName("imageExportDialog");dialog.setWindowTitle("Export Image");QFormLayout layout(&dialog);
-    QComboBox format;format.setObjectName("exportFormat");format.addItems({"PNG","JPEG"});layout.addRow("Format",&format);
+    QComboBox format;format.setObjectName("exportFormat");format.addItems({"PNG","JPEG","PDF"});layout.addRow("Format",&format);
     QSettings settings;double remembered=settings.value("jpegExportQuality",.85).toDouble();if(!std::isfinite(remembered))remembered=.85;
     ui::TrackSlider quality(Qt::Horizontal);quality.setObjectName("exportQuality");quality.setRange(0,100);quality.setValue(int(std::round(std::clamp(remembered,0.,1.)*100)));layout.addRow("JPEG quality",&quality);
     QPushButton matte("White");matte.setObjectName("exportMatte");QColor matteColor=Qt::white;layout.addRow("JPEG background",&matte);
@@ -310,9 +313,9 @@ void MainWindow::exportImage(){
     start=[&]{
         if(running||closed)return;
         running=true;runningGeneration=generation;cancel=std::make_shared<std::atomic_bool>(false);completed->store(0);
-        imaging::ExportOptions options;options.format=format.currentIndex()==0?imaging::ImageFormat::Png:imaging::ImageFormat::Jpeg;options.jpegQuality=quality.value()/100.;
+        imaging::ExportOptions options;options.format=format.currentIndex()==1?imaging::ImageFormat::Jpeg:imaging::ImageFormat::Png;options.jpegQuality=quality.value()/100.;
         options.matteR=uint8_t(matteColor.red());options.matteG=uint8_t(matteColor.green());options.matteB=uint8_t(matteColor.blue());options.cancelled=[flag=cancel]{return flag->load();};
-        const auto path=temp.filePath(QString("preview-%1.%2").arg(generation).arg(format.currentIndex()==0?"png":"jpg"));
+        const auto path=temp.filePath(QString("preview-%1.%2").arg(generation).arg(format.currentIndex()==1?"jpg":"png"));
         watcher.setFuture(QtConcurrent::run([snapshot,path,options,completed]{Prepared out;out.path=path;try{out.result=exportDocumentAtomic(snapshot,nativePath(path),options,{},[completed](uint32_t rows,uint32_t){completed->store(rows);});}catch(const imaging::ExportCancelled&){out.cancelled=true;}catch(const std::exception&e){out.error=QString::fromUtf8(e.what());}return out;}));
     };
     connect(&watcher,&QFutureWatcher<Prepared>::finished,&dialog,[&]{
@@ -339,12 +342,26 @@ void MainWindow::exportImage(){
     const auto response=dialog.exec();closed=true;debounce.stop();progress.stop();cancel->store(true);watcher.waitForFinished();
     if(response!=QDialog::Accepted||readyPath.isEmpty())return;
     if(format.currentIndex()==1)settings.setValue("jpegExportQuality",quality.value()/100.);
-    const auto destination=QFileDialog::getSaveFileName(this,"Export Image",{},format.currentIndex()==0?"PNG (*.png)":"JPEG (*.jpg)");if(destination.isEmpty())return;
+    const auto destination=QFileDialog::getSaveFileName(this,"Export Image",{},format.currentIndex()==0?"PNG (*.png)":format.currentIndex()==1?"JPEG (*.jpg)":"PDF (*.pdf)");if(destination.isEmpty())return;
     QProgressDialog saving("Saving image…","Cancel",0,0,this);saving.setObjectName("imageExportSaving");saving.setWindowModality(Qt::ApplicationModal);saving.setMinimumDuration(0);
     auto copyCancelled=std::make_shared<std::atomic_bool>(false);QFutureWatcher<QString> copy;
     connect(&saving,&QProgressDialog::canceled,&saving,[copyCancelled]{copyCancelled->store(true);});
     connect(&copy,&QFutureWatcher<QString>::finished,&saving,&QDialog::accept);
-    copy.setFuture(QtConcurrent::run([readyPath,destination,copyCancelled]{try{imaging::copyEncodedAtomic(nativePath(readyPath),nativePath(destination),[copyCancelled]{return copyCancelled->load();});return QString();}catch(const imaging::ExportCancelled&){return QString();}catch(const std::exception&e){return QString::fromUtf8(e.what());}}));
+    copy.setFuture(QtConcurrent::run([readyPath,destination,copyCancelled,isPdf=(format.currentIndex()==2),res=int(std::round(snapshot.resolution>0?snapshot.resolution:72)),w=snapshot.width,h=snapshot.height]{
+        if(isPdf){
+            try{
+                QPdfWriter writer(destination);
+                writer.setResolution(res);
+                writer.setPageSize(QPageSize(QSizeF(double(w)*72.0/res,double(h)*72.0/res),QPageSize::Point));
+                QPainter painter(&writer);
+                QImage img(readyPath);
+                painter.drawImage(0,0,img);
+                painter.end();
+                return QString();
+            }catch(const std::exception&e){return QString::fromUtf8(e.what());}
+        }
+        try{imaging::copyEncodedAtomic(nativePath(readyPath),nativePath(destination),[copyCancelled]{return copyCancelled->load();});return QString();}catch(const imaging::ExportCancelled&){return QString();}catch(const std::exception&e){return QString::fromUtf8(e.what());}
+    }));
     saving.exec();copy.waitForFinished();if(!copy.result().isEmpty())throw std::runtime_error(copy.result().toStdString());
     // The file that produced the encoded preview is copied exactly. No project/history mutation.
 }

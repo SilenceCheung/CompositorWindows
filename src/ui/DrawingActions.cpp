@@ -35,6 +35,8 @@ void MainWindow::documentSizeDialog(bool imageSize){
 }
 void MainWindow::setupDrawingActions(){
     auto*menu=menuBar()->addMenu("&Canvas");action(menu,"Canvas Size…",{},[this]{documentSizeDialog(false);});action(menu,"Image Size…",{},[this]{documentSizeDialog(true);});
+    action(menu,"Rotate Canvas 90° CW",{},[this]{edit("Rotate Canvas 90° Clockwise",[](Document&d){d=editing::rotateCanvas(d,true);});if(canvas())canvas()->fit();});
+    action(menu,"Rotate Canvas 90° CCW",{},[this]{edit("Rotate Canvas 90° Counterclockwise",[](Document&d){d=editing::rotateCanvas(d,false);});if(canvas())canvas()->fit();});
     action(menu,"Flip Canvas Horizontally",{},[this]{edit("Flip Canvas Horizontal",[](Document&d){d=editing::flipCanvas(d,true);});});action(menu,"Flip Canvas Vertically",{},[this]{edit("Flip Canvas Vertical",[](Document&d){d=editing::flipCanvas(d,false);});});
     action(menu,"Crop Tool",{},[this]{selectTool(Tool::Crop);refresh(false);});auto*cropApply=action(menu,"Apply Crop",{},[this]{applyCrop();});auto*cropCancel=action(menu,"Cancel Crop",{},[this]{cancelCrop();});
     auto*bar=addToolBar("Drawing Options");bar->setObjectName("drawingOptions");auto*gradient=bar->addAction("Gradient (G)");bindCommand(gradient,"Tools","Gradient (G)",[this]{selectTool(Tool::Gradient);refresh(false);});gradient->setShortcut({});

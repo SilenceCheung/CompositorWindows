@@ -125,6 +125,8 @@ void I18nManager::initDictionary() {
     add("&Export Image…", "导出图像(&E)…");
     add("Export Image…", "导出图像…");
     add("Export As…", "导出为…");
+    add("Export PDF…", "导出 PDF…");
+    add("Export PDF", "导出 PDF");
     add("&Save Project", "保存项目(&S)");
     add("Save Project", "保存项目");
     add("Save Project &As…", "项目另存为(&A)…");
