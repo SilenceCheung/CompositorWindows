@@ -92,28 +92,85 @@ PsdImport readPsd(const uint8_t* bytes, size_t size) {
         std::vector<std::string> folders;
         for (auto& record : records) {
             int w = std::max(0, record.right - record.left), h = std::max(0, record.bottom - record.top);
+            const bool validSize = (w > 0 && h > 0 && w <= 30000 && h <= 30000 && uint64_t(w) * h <= 100000000);
             std::vector<uint8_t> red, green, blue, alpha;
             for (auto [id, length] : record.channels) {
                 auto start = in.at; uint16_t compression = length >= 2 ? in.u16() : 0;
-                if (!record.group && !record.closer && w > 0 && h > 0 && (id == 0 || id == 1 || id == 2 || id == -1)) { auto plane = decodeChannel(in, w, h, compression); if (id == 0) red = std::move(plane); else if (id == 1) green = std::move(plane); else if (id == 2) blue = std::move(plane); else alpha = std::move(plane); }
-                if (in.at < start + length) in.at = start + size_t(length); else if (in.at > start + length) throw std::runtime_error("PSD channel overrun");
+                if (!record.group && !record.closer && validSize && (id == 0 || id == 1 || id == 2 || id == -1)) {
+                    auto plane = decodeChannel(in, w, h, compression);
+                    if (id == 0) red = std::move(plane);
+                    else if (id == 1) green = std::move(plane);
+                    else if (id == 2) blue = std::move(plane);
+                    else alpha = std::move(plane);
+                }
+                if (in.at < start + length) in.at = start + size_t(length);
+                else if (in.at > start + length) throw std::runtime_error("PSD channel overrun");
             }
             if (record.closer) { if (!folders.empty()) folders.pop_back(); continue; }
             Layer layer; layer.id = newId(); layer.name = record.name.empty() ? "Layer" : record.name; layer.opacity = record.opacity / 255.; layer.blend = record.group ? Blend::Normal : record.blend; layer.group = record.group;
             layer.transform = {double(record.left), double(record.top), double(std::max(w, 1)), double(std::max(h, 1))}; layer.parentId = folders.empty() ? std::string{} : folders.back();
             if (record.group) folders.push_back(layer.id);
-            else if (red.size() == size_t(w) * h && green.size() == red.size() && blue.size() == red.size()) layer.raster = compose(w, h, red, green, blue, alpha);
-            if (!record.group && !record.typeTool.empty()) { auto imported = readPhotoshopText(record.typeTool.data(), record.typeTool.size()); if (!imported.note.empty()) { report += layer.name + ": " + imported.note; if (imported.note.back() != '\n') report.push_back('\n'); } if (imported.editable) { try { auto drawn = text::rasterize(imported.text); layer.text = imported.text; layer.raster = drawn.raster; layer.transform.x = imported.x; layer.transform.y = imported.y; layer.transform.width = drawn.width; layer.transform.height = drawn.height; } catch (const std::exception&) { layer.text.reset(); report += layer.name + ": Editable Photoshop text becomes pixels and can't be retyped.\n"; } } }
+            else if (validSize && red.size() == size_t(w) * h && green.size() == red.size() && blue.size() == red.size()) {
+                layer.raster = compose(w, h, red, green, blue, alpha);
+            }
+            if (!record.group && !record.typeTool.empty()) {
+                auto imported = readPhotoshopText(record.typeTool.data(), record.typeTool.size());
+                if (!imported.note.empty()) { report += layer.name + ": " + imported.note; if (imported.note.back() != '\n') report.push_back('\n'); }
+                if (imported.editable) {
+                    try {
+                        auto drawn = text::rasterize(imported.text);
+                        layer.text = imported.text;
+                        layer.raster = drawn.raster;
+                        layer.transform.x = imported.x;
+                        layer.transform.y = imported.y;
+                        layer.transform.width = drawn.width;
+                        layer.transform.height = drawn.height;
+                    } catch (const std::exception&) {
+                        layer.text.reset();
+                        report += layer.name + ": Editable Photoshop text becomes pixels and can't be retyped.\n";
+                    }
+                }
+            }
             result.document.layers.push_back(std::move(layer));
         }
         in.at = std::max(in.at, infoEnd);
     }
     in.at = std::max(in.at, sectionEnd);
-    if (result.document.layers.empty() && in.at + 2 <= in.size) {
-        auto compression = in.u16(); auto red = decodeChannel(in, int(width), int(height), compression); auto green = decodeChannel(in, int(width), int(height), compression); auto blue = decodeChannel(in, int(width), int(height), compression);
-        Layer layer; layer.id = newId(); layer.name = "Background"; layer.transform = {0, 0, double(width), double(height)}; layer.raster = compose(int(width), int(height), red, green, blue, {}); result.document.layers.push_back(std::move(layer)); report += "Imported the merged image.\n";
+    const bool hasDecodedPixels = std::any_of(result.document.layers.begin(), result.document.layers.end(),
+        [](const Layer& l){ return l.raster != nullptr || l.text.has_value(); });
+    if (!hasDecodedPixels && in.at + 2 <= in.size) {
+        auto compression = in.u16();
+        auto red = decodeChannel(in, int(width), int(height), compression);
+        auto green = decodeChannel(in, int(width), int(height), compression);
+        auto blue = decodeChannel(in, int(width), int(height), compression);
+        Layer layer; layer.id = newId(); layer.name = "Background";
+        layer.transform = {0, 0, double(width), double(height)};
+        layer.raster = compose(int(width), int(height), red, green, blue, {});
+        result.document.layers = {std::move(layer)};
+        report += "Imported the merged image.\n";
     }
     if (result.document.layers.empty()) throw std::runtime_error("PSD contains no supported image");
-    report += "Imported " + std::to_string(result.document.layers.size()) + " layer(s).\n"; result.report = report; validateDocument(result.document); return result;
+    try {
+        validateDocument(result.document);
+    } catch (const std::exception&) {
+        in.at = sectionEnd;
+        if (in.at + 2 <= in.size) {
+            auto compression = in.u16();
+            auto red = decodeChannel(in, int(width), int(height), compression);
+            auto green = decodeChannel(in, int(width), int(height), compression);
+            auto blue = decodeChannel(in, int(width), int(height), compression);
+            Layer layer; layer.id = newId(); layer.name = "Background";
+            layer.transform = {0, 0, double(width), double(height)};
+            layer.raster = compose(int(width), int(height), red, green, blue, {});
+            result.document.layers = {std::move(layer)};
+            report += "Imported flattened image (multi-layer document exceeded limits).\n";
+            validateDocument(result.document);
+        } else {
+            throw;
+        }
+    }
+    report += "Imported " + std::to_string(result.document.layers.size()) + " layer(s).\n";
+    result.report = report;
+    return result;
 }
 }

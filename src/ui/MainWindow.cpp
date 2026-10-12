@@ -51,6 +51,7 @@ QAction* MainWindow::action(QMenu* menu,const QString& name,const QKeySequence& 
 MainWindow::MainWindow(bool warp):warp_(warp){
     ui::installVisualStyle();
     setWindowTitle(ui::tr("Compositor"));
+    setWindowIcon(QIcon(":/assets/app.png"));
     resize(1280,820);
     setAcceptDrops(true);
     tabs_=new QTabWidget;

@@ -14,6 +14,7 @@
 #include <QTextStream>
 
 int main(int argc,char**argv){
+    Q_INIT_RESOURCE(visual_assets);
     QApplication app(argc,argv);app.setApplicationName("Compositor");app.setOrganizationName("Compositor Windows");app.setApplicationVersion("0.1.8");
     app.setWindowIcon(QIcon(":/assets/app.png"));
     app.setProperty("manualUpdatesOnly", true);
