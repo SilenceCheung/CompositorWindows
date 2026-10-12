@@ -92,6 +92,65 @@ static void psd_contract() {
     for (int channel = 0; channel < 4; ++channel) { info.push_back(0); info.push_back(0); uint8_t value = channel == 1 || channel == 2 ? 0 : 255; for (int i = 0; i < 4; ++i) info.push_back(value); }
     u32(uint32_t(info.size() + 4)); u32(uint32_t(info.size())); bytes.insert(bytes.end(), info.begin(), info.end());
     auto imported = imaging::readPsd(bytes.data(), bytes.size()); check(imported.document.layers.size() == 1 && imported.document.layers[0].name == "Red" && imported.document.layers[0].raster->pixel(0, 0) == Pixel{255, 0, 0, 255}, "PSD layer was not imported");
+    {
+        std::vector<uint8_t> ml;
+        auto m16 = [&](int v) { ml.push_back(uint8_t(v >> 8)); ml.push_back(uint8_t(v)); };
+        auto m32 = [&](uint32_t v) { for (int s = 24; s >= 0; s -= 8) ml.push_back(uint8_t(v >> s)); };
+        auto mascii = [&](const char* s) { while (*s) ml.push_back(uint8_t(*s++)); };
+
+        mascii("8BPS"); m16(1); for (int i = 0; i < 6; ++i) ml.push_back(0); m16(3); m32(4); m32(4); m16(8); m16(3); m32(0); m32(0);
+        std::vector<uint8_t> minfo;
+        auto i16 = [&](int v) { minfo.push_back(uint8_t(v >> 8)); minfo.push_back(uint8_t(v)); };
+        auto i32 = [&](uint32_t v) { for (int s = 24; s >= 0; s -= 8) minfo.push_back(uint8_t(v >> s)); };
+        auto iascii = [&](const char* s) { while (*s) minfo.push_back(uint8_t(*s++)); };
+
+        i16(4);
+        // Record 1: Background
+        i32(0); i32(0); i32(4); i32(4);
+        i16(4); for (int id : {0, 1, 2, -1}) { i16(id); i32(18); }
+        iascii("8BIM"); iascii("norm"); minfo.push_back(255); minfo.push_back(0); minfo.push_back(0); minfo.push_back(0);
+        i32(20); i32(0); i32(0); minfo.push_back(10); iascii("Background"); minfo.push_back(0);
+
+        // Record 2: Section 3 closer
+        i32(0); i32(0); i32(0); i32(0);
+        i16(0);
+        iascii("8BIM"); iascii("norm"); minfo.push_back(255); minfo.push_back(0); minfo.push_back(0); minfo.push_back(0);
+        i32(24); i32(0); i32(0); minfo.push_back(6); iascii("</grp>"); minfo.push_back(0);
+        iascii("8BIM"); iascii("lsct"); i32(4); i32(3);
+
+        // Record 3: Child layer with clipping=true and luni Unicode name
+        i32(0); i32(0); i32(2); i32(2);
+        i16(4); for (int id : {0, 1, 2, -1}) { i16(id); i32(6); }
+        iascii("8BIM"); iascii("norm"); minfo.push_back(255); minfo.push_back(1); minfo.push_back(0); minfo.push_back(0);
+        std::vector<uint8_t> ex3;
+        auto e32_3 = [&](uint32_t v) { for (int s = 24; s >= 0; s -= 8) ex3.push_back(uint8_t(v >> s)); };
+        e32_3(0); e32_3(0); ex3.push_back(5); while (*"Child") ex3.push_back(uint8_t(*"Child"++)); for (int k = 0; k < 2; ++k) ex3.push_back(0);
+        while (*"8BIMluni") ex3.push_back(uint8_t(*"8BIMluni"++));
+        const char16_t uName[] = u"Child_Uni";
+        uint32_t uLen = 9;
+        e32_3(4 + uLen * 2); e32_3(uLen);
+        for (int k = 0; k < 9; ++k) { ex3.push_back(uint8_t(uName[k] >> 8)); ex3.push_back(uint8_t(uName[k])); }
+        i32(uint32_t(ex3.size())); minfo.insert(minfo.end(), ex3.begin(), ex3.end());
+
+        // Record 4: Folder header (section=1)
+        i32(0); i32(0); i32(0); i32(0);
+        i16(0);
+        iascii("8BIM"); iascii("norm"); minfo.push_back(255); minfo.push_back(0); minfo.push_back(0); minfo.push_back(0);
+        i32(24); i32(0); i32(0); minfo.push_back(6); iascii("Folder"); minfo.push_back(0);
+        iascii("8BIM"); iascii("lsct"); i32(4); i32(1);
+
+        for (int c = 0; c < 4; ++c) { minfo.push_back(0); minfo.push_back(0); for (int k = 0; k < 16; ++k) minfo.push_back(255); }
+        for (int c = 0; c < 4; ++c) { minfo.push_back(0); minfo.push_back(0); for (int k = 0; k < 4; ++k) minfo.push_back(128); }
+
+        m32(uint32_t(minfo.size() + 4)); m32(uint32_t(minfo.size())); ml.insert(ml.end(), minfo.begin(), minfo.end());
+        auto multiImported = imaging::readPsd(ml.data(), ml.size());
+        check(multiImported.document.layers.size() == 3, "multi-layer PSD layer count mismatch");
+        check(multiImported.document.layers[0].name == "Background", "Background name mismatch");
+        check(multiImported.document.layers[1].name == "Child_Uni", "Unicode luni name mismatch");
+        check(multiImported.document.layers[2].group == true && multiImported.document.layers[2].name == "Folder", "Folder group mismatch");
+        check(multiImported.document.layers[1].parentId == multiImported.document.layers[2].id, "Folder hierarchy parentId mismatch");
+        check(multiImported.document.layers[1].maskSourceId == multiImported.document.layers[0].id, "Clipping mask maskSourceId mismatch");
+    }
     auto textFile = [&](const std::string& engine, bool vertical, const char* name) {
         std::vector<uint8_t> type; auto t16 = [&](int v) { type.push_back(uint8_t(v >> 8)); type.push_back(uint8_t(v)); }; auto t32 = [&](uint32_t v) { for (int s = 24; s >= 0; s -= 8) type.push_back(uint8_t(v >> s)); };
         auto f64 = [&](double v) { uint64_t bits = 0; std::memcpy(&bits, &v, 8); for (int s = 56; s >= 0; s -= 8) type.push_back(uint8_t(bits >> s)); }; auto raw = [&](const char* s) { while (*s) type.push_back(uint8_t(*s++)); };
