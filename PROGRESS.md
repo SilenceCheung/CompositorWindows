@@ -3,10 +3,10 @@
 Windows preview **0.1.8** is aligned with upstream Mac release **v1.4.10** (`eb1fda73`), incorporating Robbie Tilton Compositor's authentic official application icon directly sourced from upstream `AppIcon.appiconset` (standard multi-resolution Windows ICO and high-DPI RGBA PNGs with explicit Qt resource initialization), full multi-layer PSD commercial project reconstruction (matching upstream Swift `PSDReader` and `PSDDocumentBuilder` bottom-to-top layer stack, folder tree grouping with correct parent-child topology, Unicode `luni` UTF-16 layer names, clipping mask wiring via `maskSourceId`, per-layer `cropToCanvas` memory budgeting, and non-destructive individual layer fallback so all layers remain fully editable in the layer panel and canvas), digital camera HEIF/HIF image file import support (`.hif`), batch folder import as project layers with natural locale name ordering, upstream dependency lock pin updated to official release commit `eb1fda73e97dbaf5a56ddbf237b712721b37050a`, and full test & packaging verification 100% passed.
 
 The 0.1.8 production release packages are built on `windows-2022` MSVC toolchain, verified, and placed in `./dist`:
-- `CompositorWindows-0.1.8-x64.msi` (`92a9decf2b1fd0131d15f74d5260b0a71b9f479331f007aea8233bdf81c0755c`)
-- `CompositorWindows-0.1.8-portable.zip` (`532fda9db7e788d73c17c9abd8f4a5d8fd4a7cfb026bfb92d7ecf7f31fda6c1d`)
-- `CompositorWindows-0.1.8-demo.zip` (`8c56e3af8429ee65890d6ed466ca967eff2ef37d67cf63236aa57861aeabe150`)
-- `CompositorWindows-0.1.8-source.zip` (`1f01553f0efe9935b639b5c570718a50a5c2469ab6766079c7571c196464118a`)
+- `CompositorWindows-0.1.8-x64.msi` (`a71081744cb3ba902e92fd2fb0ea775a6efd941bcb08e7c190997df0acf4dcb0`)
+- `CompositorWindows-0.1.8-portable.zip` (`e9262ec1074ebc291385964c3d8cc7b2eccd61b80c312337f78af02650b5c0df`)
+- `CompositorWindows-0.1.8-demo.zip` (`eb42023b76f4d95c54b6dc49eef158a5b4a004d999f815729625bb58004d0bda`)
+- `CompositorWindows-0.1.8-source.zip` (`c86d27a9bc0f1b5fb401b5ec2078f2abb3e203c20c4fa9db02b573bfafbea8d5`)
 - Manifest and SHA256SUMS.txt integrity verified 100%. All runtime dependencies, neural models, and translations are self-contained with no target host requirements.
 
 Windows preview **0.1.7** is aligned with upstream Mac release **v1.4.9** (`0ab3ff58`), incorporating WebP image import decoding and dialog filters, full PSD/PSB drag-and-drop and open-as-project decoding via native pure C++ PSD engine, Command/Control middle-button drag zoom matching upstream Blender-like gesture, upstream dependency lock pin updated to official release commit `0ab3ff58a3dcf3d52a455fe3ab0336ac95923edd`, and bilingual localization (Simplified Chinese & English) validation 100% passed.
