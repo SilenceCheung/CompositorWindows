@@ -1,5 +1,14 @@
 # Current checkpoint
 
+Windows preview **0.1.8** is aligned with upstream Mac release **v1.4.10** (`eb1fda73`), incorporating Robbie Tilton Compositor's authentic official application icon (peeling color page over transparent grid, bundled across 16x16 to 256x256 multi-resolution ICO and high-DPI RGBA PNGs), digital camera HEIF/HIF image file import support (`.hif`), batch folder import as project layers with natural locale name ordering, upstream dependency lock pin updated to official release commit `eb1fda73e97dbaf5a56ddbf237b712721b37050a`, and full test & packaging verification 100% passed.
+
+The 0.1.8 production release packages are built on `windows-2022` MSVC toolchain, verified, and placed in `./dist`:
+- `CompositorWindows-0.1.8-x64.msi` (`6369b7c20c7e5ada55056aa061d548c60ee62b2a28ac15792560577fae6e1096`)
+- `CompositorWindows-0.1.8-portable.zip` (`ae82e465788801a473be80894b6aed70396b22f3ca0939a1dbbcde2b0fa66cf3`)
+- `CompositorWindows-0.1.8-demo.zip` (`4e7861acea4696a9249a79ff9b99c487c8e09da5b307f492ff3a75a29ce4f0d4`)
+- `CompositorWindows-0.1.8-source.zip` (`07cc16e784b1407ebe7767a93f297dc7b71930076387283d7faa9c8139b8306a`)
+- Manifest and SHA256SUMS.txt integrity verified 100%. All runtime dependencies, neural models, and translations are self-contained with no target host requirements.
+
 Windows preview **0.1.7** is aligned with upstream Mac release **v1.4.9** (`0ab3ff58`), incorporating WebP image import decoding and dialog filters, full PSD/PSB drag-and-drop and open-as-project decoding via native pure C++ PSD engine, Command/Control middle-button drag zoom matching upstream Blender-like gesture, upstream dependency lock pin updated to official release commit `0ab3ff58a3dcf3d52a455fe3ab0336ac95923edd`, and bilingual localization (Simplified Chinese & English) validation 100% passed.
 
 The 0.1.7 production release packages are built on `windows-2022` MSVC toolchain, verified, and placed in `./dist`:
