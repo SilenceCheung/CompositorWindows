@@ -6,6 +6,7 @@
 #include <QTemporaryDir>
 #include <QFileInfo>
 #include <QApplication>
+#include <QIcon>
 #include <QTimer>
 #include <QFile>
 #include <QDir>
@@ -13,7 +14,8 @@
 #include <QTextStream>
 
 int main(int argc,char**argv){
-    QApplication app(argc,argv);app.setApplicationName("Compositor");app.setOrganizationName("Compositor Windows");app.setApplicationVersion("0.1.4");
+    QApplication app(argc,argv);app.setApplicationName("Compositor");app.setOrganizationName("Compositor Windows");app.setApplicationVersion("0.1.8");
+    app.setWindowIcon(QIcon(":/assets/app.png"));
     app.setProperty("manualUpdatesOnly", true);
     const auto args=app.arguments();
     if(args.contains("--update-health-check")){

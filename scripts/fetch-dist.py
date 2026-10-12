@@ -18,7 +18,7 @@ def run(cmd):
     return result.returncode, result.stdout.strip(), result.stderr.strip()
 
 def main():
-    tag = sys.argv[1] if len(sys.argv) > 1 else "v0.1.7"
+    tag = sys.argv[1] if len(sys.argv) > 1 else "v0.1.8"
     DIST.mkdir(parents=True, exist_ok=True)
     print(f"Checking latest release and artifacts for {REPO} (tag: {tag})...")
 

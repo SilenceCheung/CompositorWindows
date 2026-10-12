@@ -60,6 +60,11 @@ template<class Load> bool loadProjectBatch(QWidget* owner,const QStringList& pat
     }
     return opened;
 }
+static QStringList supportedImageFiles(const QString& dirPath){
+    QDir dir(dirPath);
+    QStringList nameFilters{"*.png","*.jpg","*.jpeg","*.tif","*.tiff","*.heic","*.heif","*.hif","*.webp","*.psd","*.psb","*.svg","*.cr2","*.nef","*.arw","*.dng","*.raw"};
+    return dir.entryList(nameFilters, QDir::Files, QDir::Name | QDir::LocaleAware);
+}
 }
 ui::ImportQueue* MainWindow::ensureImportQueue(){
     if(importQueue_)return importQueue_;
@@ -110,6 +115,15 @@ ui::WorkspaceDropQueue* MainWindow::ensureWorkspaceDropQueue(){
     host.image=[this,project](QObject* canvas,const QString& path,std::optional<Point> point,std::shared_ptr<void> lifetime){
         auto* target=project(canvas);if(!target)throw std::runtime_error("The drop destination was closed");
         finishOpacityEdit();cropDraft_.reset();cropDrag_.reset();if(transformSession_)applyTransformSession();
+        if(QFileInfo(path).isDir() && !path.endsWith(".comp", Qt::CaseInsensitive) && !QFileInfo(path + "/manifest.json").exists()){
+            QDir dir(path);
+            const auto files = supportedImageFiles(path);
+            if(files.isEmpty()) throw std::runtime_error("“" + QFileInfo(path).fileName().toStdString() + "” has no images to import.");
+            ui::ImportBatch batch;batch.point=point;batch.lifetime=std::move(lifetime);
+            for(const auto& f : files) batch.files.push_back(nativePath(dir.filePath(f)));
+            ensureImportQueue()->enqueue(target->canvas,std::move(batch));
+            return;
+        }
         ui::ImportBatch batch;batch.files={nativePath(path)};batch.point=point;batch.lifetime=std::move(lifetime);
         ensureImportQueue()->enqueue(target->canvas,std::move(batch));
     };
@@ -131,8 +145,25 @@ void MainWindow::queueImageImports(const QStringList& paths,EditorProject* targe
     cropDraft_.reset();cropDrag_.reset();cropSnap_.reset();refreshCropControls();
     if(transformSession_)applyTransformSession();
     if(!target)target=&addEmptyProject();
-    ui::ImportBatch batch;batch.origin=ui::ImportBatch::Origin::Explicit;batch.point=point;for(const auto& path:paths)batch.files.push_back(nativePath(path));
-    ensureImportQueue()->enqueue(target->canvas,std::move(batch));
+    ui::ImportBatch batch;batch.origin=ui::ImportBatch::Origin::Explicit;batch.point=point;
+    QStringList emptyFolders;
+    for(const auto& path:paths){
+        if(QFileInfo(path).isDir() && !path.endsWith(".comp", Qt::CaseInsensitive) && !QFileInfo(path + "/manifest.json").exists()){
+            QDir dir(path);
+            const auto files = supportedImageFiles(path);
+            if(files.isEmpty()){
+                emptyFolders.append(QString("“%1” has no images to import.").arg(QFileInfo(path).fileName()));
+            } else {
+                for(const auto& f : files) batch.files.push_back(nativePath(dir.filePath(f)));
+            }
+        } else {
+            batch.files.push_back(nativePath(path));
+        }
+    }
+    if(!emptyFolders.isEmpty()){
+        QMessageBox::warning(this,"Import Images",emptyFolders.join("\n\n"));
+    }
+    if(!batch.files.empty()) ensureImportQueue()->enqueue(target->canvas,std::move(batch));
 }
 EditorProject* MainWindow::dropDestinationAt(QPoint location,std::optional<Point>& point){
     point.reset();auto* destination=current();
@@ -267,6 +298,16 @@ bool MainWindow::loadProjectDirectory(const QString& path){
                 tabs_->setCurrentIndex(int(index));return true;
             }
         }
+        if(!path.endsWith(".comp",Qt::CaseInsensitive)&&!QFileInfo(path+"/manifest.json").exists()){
+            const auto files=supportedImageFiles(path);
+            if(files.isEmpty())throw std::runtime_error("“"+QFileInfo(path).fileName().toStdString()+"” has no images to import.");
+            QDir dir(path);QStringList fullPaths;
+            for(const auto& f:files)fullPaths.append(dir.filePath(f));
+            const bool reuse=!current()||!importQueue_||!importQueue_->contains(current()->canvas);
+            auto& destination=addEmptyProject(reuse);
+            queueImageImports(fullPaths,&destination,{});
+            return true;
+        }
         if(transformSession_&&transformSession_->persistent)applyTransformSession();
         ProjectStore store(makeWicProjectCodec());auto opened=store.load(supplied);
         EditorProject* project{};
@@ -301,7 +342,7 @@ void MainWindow::openPath(const QString&path){
     const bool reuse=!current()||!importQueue_||!importQueue_->contains(current()->canvas);
     auto& destination=addEmptyProject(reuse);queueImageImports({path},&destination,{});
 }
-void MainWindow::importImage(){auto* target=current();auto paths=QFileDialog::getOpenFileNames(this,"Import Images",{},"Images (*.png *.jpg *.jpeg *.tif *.tiff *.heic *.heif *.webp *.psd *.psb *.svg *.cr2 *.nef *.arw *.dng *.raw);;WebP (*.webp);;All files (*)");QStringList images;for(const auto& path:paths){auto ext=QFileInfo(path).suffix().toLower();if(ext=="psd"||ext=="psb"){try{auto imported=imaging::readPsd(nativePath(path));if(QMessageBox::question(this,"Import PSD",QString::fromStdString(imported.report)+"\nApply this import?")!=QMessageBox::Yes)continue;auto& project=addProject(std::move(imported.document),QFileInfo(path).fileName(),false);if(project.document){project.active=project.document->layers.back().id;project.selected={project.active};}refresh();project.canvas->fit();}catch(const std::exception& error){QMessageBox::critical(this,"Import PSD",error.what());}}else images.append(path);}if(!images.isEmpty())queueImageImports(images,target,{});}
+void MainWindow::importImage(){auto* target=current();auto paths=QFileDialog::getOpenFileNames(this,"Import Images",{},"Images (*.png *.jpg *.jpeg *.tif *.tiff *.heic *.heif *.hif *.webp *.psd *.psb *.svg *.cr2 *.nef *.arw *.dng *.raw);;WebP (*.webp);;All files (*)");QStringList images;for(const auto& path:paths){auto ext=QFileInfo(path).suffix().toLower();if(ext=="psd"||ext=="psb"){try{auto imported=imaging::readPsd(nativePath(path));if(QMessageBox::question(this,"Import PSD",QString::fromStdString(imported.report)+"\nApply this import?")!=QMessageBox::Yes)continue;auto& project=addProject(std::move(imported.document),QFileInfo(path).fileName(),false);if(project.document){project.active=project.document->layers.back().id;project.selected={project.active};}refresh();project.canvas->fit();}catch(const std::exception& error){QMessageBox::critical(this,"Import PSD",error.what());}}else images.append(path);}if(!images.isEmpty())queueImageImports(images,target,{});}
 bool MainWindow::saveProject(bool saveAs){cropDraft_.reset();cropDrag_.reset();if(transformSession_&&transformSession_->persistent)applyTransformSession();auto*p=current();if(!p||!p->document||p->importing||p->projectBusy)return false;auto path=p->path;if(path.isEmpty()||saveAs){path=QFileDialog::getSaveFileName(this,"Save Compositor Project",path.isEmpty()?"Untitled.comp":path,"Compositor project directory (*.comp)");if(path.isEmpty())return false;if(!path.endsWith(".comp",Qt::CaseInsensitive))path+=".comp";}ProjectStore store(makeWicProjectCodec());store.save(nativePath(path),*p->document,p->active);p->path=path;p->history.markSaved();refresh(false);return true;}
 void MainWindow::exportImage(){
     auto*p=current();if(!p||!p->document||p->importing||p->projectBusy)return;
