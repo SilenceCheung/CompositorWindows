@@ -5,7 +5,7 @@
 > - Windows 维护基准：`Compositor for Windows`
 > - 原始基准提交：`a19db9011282399785dc18efcfded904627bdcc2` (Mac v1.0.4)
 > - 当前对齐目标：`75147a2` (Mac v1.4.8)
-> - 最近一次审计与同步时间：`2026-10-10 03:34:48 UTC`
+> - 最近一次审计与同步时间：`2026-10-19 07:12:11 UTC`
 
 ---
 
@@ -13,8 +13,8 @@
 
 | 维度 | 当前记录状态 |
 | :--- | :--- |
-| **官方最新 HEAD** | `75147a27d90c681215151a6301373dd2b07b7aa2` |
-| **基准与最新提交差异** | 共包含 381 次上游提交 |
+| **官方最新 HEAD** | `365b5745eda537f984f3d5bed1e53c361dbc9c91` |
+| **基准与最新提交差异** | 共包含 454 次上游提交 |
 | **Windows 移植对齐层级** | 核心可观察特性已对齐至 Mac v1.4.8 |
 | **底层 C 算法同步状态** | `AdjustPixels.c`, `BrushPixels.c`, `ContentFill.c`, `HealPixels.c`, `LensPixels.c`, `LevelsPixels.c`, `NoisePixels.c`, `WandPixels.c` 均保持最新同步 |
 | **下一次同步评估计划** | 持续通过 GitHub Actions 定时追踪官方新 Tag |
@@ -37,25 +37,25 @@
 ## 3. 最近上游提交清单 (最新 20 条记录)
 
 ```text
-75147a2 Camera Raw: adaptive Contrast, Highlights and Shadows; Dehaze, Texture, Clarity and Sharpening nearer Photoshop
-57ab3bb Camera Raw's Light and Color sliders match Photoshop's Camera Raw Filter
-e03923f Command or Control with a middle drag zooms, as in Blender
-22c7b8d Publish update feed for Compositor 1.4.8
-24ef288 Version 1.4.8
-3e09948 Navigator as a minimap in the canvas's corner from 300% zoom
-3c6cf5e Merge #199: Navigator
-e1a5210 README lists Dither and Scanlines among the filters
-cdde327 Scanlines show on solid colors: Black Level, glow that eases off near white, no glow by default
-1187736 Scanlines: smoothed displacement with lines hiding those behind, ±100 px, and Dots by tone
-06c3a22 Filter › Scanlines: its own filter, with Displace, Threshold, Thickness and Color Split
-b1db93d Export As previews transparency on the canvas's checkerboard
-450af5f File › Export As…: PNG, JPEG or PDF, sized and previewed
-aac6e02 Merge #208: export a PDF
-b5f9b80 Slider snap test draws its slider before pressing it (#210)
-06313a9 Layers panel doesn't flash gray for a click, a stroke or a moment's work
-b4e147b Layers panel reveal: no separate test file
-41bd281 Merge #235: reveal canvas-selected layers in the Layers panel
-cea9083 README: translations are on hold
-4e035bf Don't Save matches Cancel, leaving Save the one colored button
-... 及其余 361 条提交记录
+365b574 Publish update feed for Compositor 1.5.3
+554104c Version 1.5.3
+9329ab8 Accelerate large Camera Raw previews with verified Metal lookup
+cf0ffa1 Reduce Camera Raw scope sampling and benchmark preview latency
+f4b7009 Keep Camera Raw previews at native resolution during adjustments
+fc4c273 Update zoom cursors immediately when drag direction changes
+92eba05 Add middle-mouse dragging to scroll the layer list
+9b3f48e Disable smooth corners when rectangle radius is zero
+9f1d158 Add smooth rectangle corners and simplify shape controls
+43d691b Publish update feed for Compositor 1.5.2
+f2d5754 Version 1.5.2
+a3a0e29 RAW import: Camera Raw… imports, then opens the Camera Raw Filter
+735c2cc Camera Raw Shadows adapts to the picture as Photoshop's does
+e8c9e29 Move Camera Raw scrollbar clear of the controls
+8d3f2fe Merge pull request #187 from Fvzion/feature/camera-raw-section-reset
+b8ff682 Show Camera Raw section reset only alongside its eye icon
+87e2283 Keyboard Shortcuts: clear a shortcut, keys for CMYK proofing, two fixes
+f2747c4 Update feed: list 1.5's highlights with 1.5.1's changes
+5e9033f Update alert in the wide layout every time
+5a18e8b Publish update feed for Compositor 1.5.1
+... 及其余 434 条提交记录
 ```
