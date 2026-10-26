@@ -5,7 +5,7 @@
 > - Windows 维护基准：`Compositor for Windows`
 > - 原始基准提交：`a19db9011282399785dc18efcfded904627bdcc2` (Mac v1.0.4)
 > - 当前对齐目标：`75147a2` (Mac v1.4.8)
-> - 最近一次审计与同步时间：`2026-10-10 03:34:48 UTC`
+> - 最近一次审计与同步时间：`2026-10-26 07:18:37 UTC`
 
 ---
 
@@ -13,8 +13,8 @@
 
 | 维度 | 当前记录状态 |
 | :--- | :--- |
-| **官方最新 HEAD** | `75147a27d90c681215151a6301373dd2b07b7aa2` |
-| **基准与最新提交差异** | 共包含 381 次上游提交 |
+| **官方最新 HEAD** | `2d75d9172835e1dd6111cb2b659958ec33fa5abf` |
+| **基准与最新提交差异** | 共包含 560 次上游提交 |
 | **Windows 移植对齐层级** | 核心可观察特性已对齐至 Mac v1.4.8 |
 | **底层 C 算法同步状态** | `AdjustPixels.c`, `BrushPixels.c`, `ContentFill.c`, `HealPixels.c`, `LensPixels.c`, `LevelsPixels.c`, `NoisePixels.c`, `WandPixels.c` 均保持最新同步 |
 | **下一次同步评估计划** | 持续通过 GitHub Actions 定时追踪官方新 Tag |
@@ -37,25 +37,25 @@
 ## 3. 最近上游提交清单 (最新 20 条记录)
 
 ```text
-75147a2 Camera Raw: adaptive Contrast, Highlights and Shadows; Dehaze, Texture, Clarity and Sharpening nearer Photoshop
-57ab3bb Camera Raw's Light and Color sliders match Photoshop's Camera Raw Filter
-e03923f Command or Control with a middle drag zooms, as in Blender
-22c7b8d Publish update feed for Compositor 1.4.8
-24ef288 Version 1.4.8
-3e09948 Navigator as a minimap in the canvas's corner from 300% zoom
-3c6cf5e Merge #199: Navigator
-e1a5210 README lists Dither and Scanlines among the filters
-cdde327 Scanlines show on solid colors: Black Level, glow that eases off near white, no glow by default
-1187736 Scanlines: smoothed displacement with lines hiding those behind, ±100 px, and Dots by tone
-06c3a22 Filter › Scanlines: its own filter, with Displace, Threshold, Thickness and Color Split
-b1db93d Export As previews transparency on the canvas's checkerboard
-450af5f File › Export As…: PNG, JPEG or PDF, sized and previewed
-aac6e02 Merge #208: export a PDF
-b5f9b80 Slider snap test draws its slider before pressing it (#210)
-06313a9 Layers panel doesn't flash gray for a click, a stroke or a moment's work
-b4e147b Layers panel reveal: no separate test file
-41bd281 Merge #235: reveal canvas-selected layers in the Layers panel
-cea9083 README: translations are on hold
-4e035bf Don't Save matches Cancel, leaving Save the one colored button
-... 及其余 361 条提交记录
+2d75d91 Publish update feed for Compositor 1.5.10
+99a8fc1 Compositor 1.5.10
+b0f0b2b Sharpen: an unsharp mask with Amount and Radius, as a filter and an adjustment layer (project format 19)
+f7ad0f9 Merge #241: crop to a custom width:height ratio, and a 2.39:1 preset
+a304465 Crop ratios grouped by shape with 2.39:1 in place of 9:20, and Original renamed Canvas
+bbe485f Merge main into custom crop ratios
+122e585 Tool headers: flip buttons as icons, and number fields left-aligned and sized for their digits
+002737a Merge #191: align and distribute layers, from one Align button in the Move bar and the Layer menu
+93a8aeb Align is one button in the Move bar, a panel of icons, horizontal over vertical, that a move in progress leaves available
+4a73a1d Merge main into align and distribute
+8cdc2b6 Publish update feed for Compositor 1.5.9
+efc06ff Compositor 1.5.9
+500e133 Adjustment layer test compares only the later kinds' own settings on reopening
+338a609 Lens Effects layers on the canvas show exactly what Copy Merged and the export make, with matching angles and spike sizes
+7651033 Starburst shares its work: each direction turned once, each length's lights spread once for all three colors
+71bb6f0 Bokeh's Round, Hexagon and Oval discs share one table of weights, worked out once a frame
+79f98de RGB Split with blur runs in two passes, streaks then spectrum: several times faster, looking the same
+6a28e42 Canvas keeps each adjustment layer's result while nothing under or about it changes, and Bokeh runs on the GPU without reading back
+7b5ba97 Vignette, Lens Effects and Tonal Contrast as adjustment layers (project format 18), and the Filter menu splits those that can be layers from the rest
+c9c7531 Publish update feed for Compositor 1.5.8
+... 及其余 540 条提交记录
 ```
